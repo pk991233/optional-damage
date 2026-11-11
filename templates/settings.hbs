@@ -1,0 +1,8 @@
+<form class="optional-damage-settings">
+  <p>每行一個選項：<strong>名稱 | 骰式 | 傷害類型代碼</strong></p>
+  <p>例如：獵人印記 | 1d6 | force<br>例如：妖火之刃 | 1d8 | fire</p>
+  <textarea name="entries" rows="10" aria-label="額外傷害選項">{{entries}}</textarea>
+  <p>空白行會略過。清空全部內容即可停用選項。骰式支援角色資料，例如 1d6 + @prof。</p>
+  <div class="optional-damage-types">{{#each types}}<span>{{label}}：<code>{{code}}</code></span>{{/each}}</div>
+  <button type="submit"><i class="fas fa-save"></i> 儲存</button>
+</form>

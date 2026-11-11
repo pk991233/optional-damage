@@ -1,0 +1,6 @@
+.optional-damage-panel { margin: 10px 0; padding: 10px; }
+.optional-damage-panel label { display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer; }
+.optional-damage-panel input { flex: 0 0 auto; }
+.optional-damage-panel small { display: block; opacity: .8; margin-top: 8px; }
+.optional-damage-settings textarea { width: 100%; min-height: 190px; resize: vertical; }
+.optional-damage-types { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 12px; margin: 12px 0; }
