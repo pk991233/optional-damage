@@ -56,11 +56,11 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   if (!game.user.isGM || game.users.activeGM?.id !== game.user.id) return;
   const schema = game.settings.get(ID, "schemaVersion");
-  if (schema >= 4) return;
+  if (schema >= 5) return;
   const old = game.settings.get(ID, "entries");
-  const next = migrateOptions(migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old), PRESETS.slice(5));
+  const next = migrateOptions(migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old), PRESETS.slice(schema < 4 ? 5 : 7));
   if (next !== old) await game.settings.set(ID, "entries", next);
-  await game.settings.set(ID, "schemaVersion", 4);
+  await game.settings.set(ID, "schemaVersion", 5);
 });
 
 Hooks.on("dnd5e.postBuildDamageRollConfig", (process, config, index, {formData} = {}) => {
@@ -118,6 +118,11 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     });
     row.append(input, label);
     panel.append(row);
+    if (entry.note) {
+      const note = document.createElement("small");
+      note.textContent = entry.disabledReason || entry.note;
+      panel.append(note);
+    }
     if (entry.smite) {
       const controls = document.createElement("div");
       const select = document.createElement("select");

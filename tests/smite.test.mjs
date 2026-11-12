@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {ID, DEFAULTS, PRESETS, parseOptions, availableOptions, replaceExtras, migrateOptions} from '../scripts/options.mjs';
 import {spellSlots, smiteFormula} from '../scripts/smite.mjs';
 import {consumptionWrapper} from '../scripts/consumption.mjs';
-const entries = parseOptions(DEFAULTS,{force:{},radiant:{},fire:{},cold:{},necrotic:{}},s=>/^\d+d\d+$/.test(s));
+const entries = parseOptions(DEFAULTS,{force:{},radiant:{},psychic:{},fire:{},cold:{},necrotic:{}},s=>/^\d+d\d+$/.test(s));
 function setup() {
   const items = new Map([
     ['d',{id:'d',name:'Divine Smite',type:'spell'}],
@@ -103,12 +103,12 @@ test('slot write failure prevents item debit; item write failure refunds slot de
 });
 test('migration adds only smites, preserves deleted presets/custom formulas and empty list',()=>{
   const old='Custom | 1d6 | force';
-  const next=migrateOptions(old,PRESETS.slice(5));
+  const next=migrateOptions(old,PRESETS.slice(5,7));
   assert.equal(next.split('\n').length,3);
-  assert.equal(migrateOptions(next,PRESETS.slice(5)),next);
-  assert.equal(migrateOptions('',PRESETS.slice(5)),'');
+  assert.equal(migrateOptions(next,PRESETS.slice(5,7)),next);
+  assert.equal(migrateOptions('',PRESETS.slice(5,7)),'');
   const custom='Divine Smite | 3d8 | radiant';
-  assert.ok(migrateOptions(custom,PRESETS.slice(5)).startsWith(custom));
+  assert.ok(migrateOptions(custom,PRESETS.slice(5,7)).startsWith(custom));
 });
 test('Document.update may replace dotted keys with nested data without breaking verification or refunds',async()=>{
   const {actor,config}=setup();

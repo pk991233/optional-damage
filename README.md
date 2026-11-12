@@ -1,4 +1,4 @@
-# 額外傷害選擇 0.4.1
+# 額外傷害選擇 0.5.0
 
 目標版本：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗提供額外傷害複選框，僅列出角色擁有的法術或特性。
 
@@ -6,9 +6,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.4.1.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.5.0.zip)
 
-已安裝者檢查更新至 0.4.1，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
+已安裝者檢查更新至 0.5.0，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
 
 ## 預設
 
@@ -75,3 +75,23 @@ Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/modul
 - 只有勾選至聖斬時，才能勾選邪魔／亡靈 +1d8；取消至聖斬會同步清除該勾選及加傷，重新勾選時不保留。
 - 28 項測試通過，新增更新資料變形及實際視窗事件處理器的回歸測試；尚未在使用者的 Foundry／Midi-QOL 世界實測。
 - 0.4.0 報錯發生在扣位之後，該次法術位可能已消耗；重試前請檢查角色卡，依實際狀況手動補回。
+
+## 0.5.0：遊俠加傷與祕法槍械
+
+依使用者提供的能力規則加入五項預設：
+
+| 選項 | 公式代號 | 傷害／消耗 |
+|---|---|---|
+| 恐懼打擊（妖精漫遊者） | fey | 遊俠 11 級前 1d4，之後 1d6 心靈 |
+| 恐懼打擊（幽域追獵者） | gloom | 2d6 心靈，扣對應特性 1 次 |
+| 巨像屠夫 | colossus | 1d8，沿用第一筆傷害類型 |
+| 極地打擊 | polar | 遊俠 11 級前 1d4，之後 1d6 寒冷 |
+| 祕法槍械 | firearm | 1d8，沿用第一筆傷害類型；僅法術傷害顯示 |
+
+仍須角色擁有對應能力，不能只有子職。英文名稱或 identifier 的 Dreadful Strikes（複數）判為妖精漫遊者；Dreadful Strike（單數）判為幽域追獵者。中文同名時以角色卡的 subclass 物品名稱／identifier 判斷 Fey Wanderer／妖精漫遊者 或 Gloom Stalker／幽域追獵者。只有中文且無法判斷，或兩個子職同時存在時，停用選項並提示補上英文名稱／識別碼。若兩個能力都有清楚英文名稱，能各自獨立顯示。
+
+幽域追獵者需先在特性上設定使用次數上限為感知調整值（最低 1），並設定長休恢復全部；模組沿用設定，不自動修改上限與恢復方式。未設定時停用並提示。妖精與極地版本需要角色卡的遊俠 class 等級資料，不以總等級計算。
+
+每回合一次／每目標每回合一次不自動追蹤。玩家需確認武器命中、巨像屠夫目標生命未滿，以及祕法槍械確實作為奇械師法術法器且只加到一次傷害骰。祕法槍械只做法術來源過濾，不自動判斷施法職業或使用哪個法器；多種傷害時目前固定沿用第一筆傷害類型。
+
+GM 進入世界會補入五項預設；保留原有自訂內容及已刪除的舊預設，完全清空的清單仍維持停用。35 項測試通過，尚未在實際 Foundry／Midi-QOL 環境驗證新項目。

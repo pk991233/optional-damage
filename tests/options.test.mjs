@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseOptions, replaceExtras} from '../scripts/options.mjs';
 import {DEFAULTS, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from '../scripts/options.mjs';
-const presets = parseOptions(DEFAULTS, {force:{}, necrotic:{}, fire:{}, cold:{},radiant:{}}, () => true);
+const presets = parseOptions(DEFAULTS, {force:{}, necrotic:{}, fire:{}, cold:{},radiant:{},psychic:{}}, () => true);
 test('giant ancestry Fire and Frost select only their own preset', () => {
   for (const [name, type] of [['Giant Ancestry (Fire)', 'fire'], ['Giant Ancestry (Frost)', 'cold']]) {
     const found = availableOptions(presets, {items:[{type:'feat', name}]});
@@ -48,7 +48,7 @@ test('migration preserves custom entries, does not duplicate presets, preserves 
   const old = '獵人印記 | 2d6 | force\n自製 | 1d8 | fire';
   const next = migrateOptions(old);
   assert.ok(next.startsWith(old));
-  assert.equal(next.split('\n').length, 8);
+  assert.equal(next.split('\n').length, 13);
   assert.equal(migrateOptions(next), next);
   assert.equal(migrateOptions(''), '');
 });
