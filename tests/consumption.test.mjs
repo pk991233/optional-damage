@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {consumptionWrapper} from '../scripts/consumption.mjs';
 import {ID, DEFAULTS, parseOptions, availableOptions, replaceExtras} from '../scripts/options.mjs';
-const presets = parseOptions(DEFAULTS, {force:{},necrotic:{},fire:{},cold:{},radiant:{},psychic:{}}, () => true);
+const presets = parseOptions(DEFAULTS, {force:{},necrotic:{},lightning:{},fire:{},cold:{},radiant:{},psychic:{},lightning:{}}, () => true);
 function setup(spent = 0) {
   const items = new Map(['Fire','Frost'].map(name => [name, {id:name,type:'feat',name:`Giant Ancestry (${name})`,isOwner:true,system:{uses:{max:3,spent}}}]));
   const actor = {uuid:'Actor.test',items,async updateEmbeddedDocuments(type, changes) {

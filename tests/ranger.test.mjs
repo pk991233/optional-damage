@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {consumptionWrapper} from '../scripts/consumption.mjs';
 import {PRESETS,parseOptions,availableOptions,migrateOptions,replaceExtras} from '../scripts/options.mjs';
-const entries=parseOptions(PRESETS.slice(7).map(p=>p.join(' | ')).join('\n'),{psychic:{},cold:{}},()=>true);
+const entries=parseOptions(PRESETS.slice(7,12).map(p=>p.join(' | ')).join('\n'),{psychic:{},cold:{}},()=>true);
 const feat=(name,system={})=>({id:name,type:'feat',name,isOwner:true,system});
 const ranger=level=>({type:'class',name:'Ranger',system:{levels:level}});
 const subclass=name=>({type:'subclass',name});
@@ -55,10 +55,10 @@ test('colossus inherits damage; firearm only appears for spell damage',()=>{
 });
 test('migration adds both same-name presets once and keeps empty list disabled',()=>{
   const old='Custom | 1d6 | cold';
-  const next=migrateOptions(old,PRESETS.slice(7));
+  const next=migrateOptions(old,PRESETS.slice(7,12));
   assert.equal(next.split('\n').length,6);
-  assert.equal(migrateOptions(next,PRESETS.slice(7)),next);
-  assert.equal(migrateOptions('',PRESETS.slice(7)),'');
+  assert.equal(migrateOptions(next,PRESETS.slice(7,12)),next);
+  assert.equal(migrateOptions('',PRESETS.slice(7,12)),'');
 });
 test('Hunter parent names and identifier expose Colossus with an explicit selection reminder',()=>{
   for(const item of [feat("Hunter's Prey"),feat('Hunter’s Prey'),feat('獵殺技藝'),feat('自訂名稱',{identifier:'hunters-prey'})]) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {ID, DEFAULTS, PRESETS, parseOptions, availableOptions, replaceExtras, migrateOptions} from '../scripts/options.mjs';
 import {spellSlots, smiteFormula} from '../scripts/smite.mjs';
 import {consumptionWrapper} from '../scripts/consumption.mjs';
-const entries = parseOptions(DEFAULTS,{force:{},radiant:{},psychic:{},fire:{},cold:{},necrotic:{}},s=>/^\d+d\d+$/.test(s));
+const entries = parseOptions(DEFAULTS,{force:{},radiant:{},psychic:{},lightning:{},fire:{},cold:{},necrotic:{},lightning:{}},s=>/^\d+d\d+$/.test(s));
 function setup() {
   const items = new Map([
     ['d',{id:'d',name:'Divine Smite',type:'spell'}],

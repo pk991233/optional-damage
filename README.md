@@ -1,3 +1,60 @@
+# v0.6.0：新增 33 項附傷預設
+
+更新後由主要 GM 進入世界一次，將新預設加入既有清單；保留原有自訂內容，完全空白的清單維持停用。已有的魔能重斬與火／霜巨人血統不新增重複列；霜系新增「霜之刺骨」偵測別名。
+
+- 依對應職業等級計算成長；角色須持有對應特性（中英文名稱或識別碼）。
+- 神性狂怒、神聖打擊、原初打擊、吸命斬等：先選傷害類型才能勾選。
+- 戰鬥激勵、墓穴之觸、凶蠻攻擊：先選骰面。戰鬥激勵要在受益者角色上新增名為 Combat Inspiration 的特性，並選給予者的骰面。
+- 魔焰專家、塑能增幅：可選一至兩顆生命骰，包括不同骰面的組合；生命骰須手動扣除。
+- 奧法衝擊自動消耗其特性本身的1次使用次數，請先設定 uses；取消不扣。
+- 集中力、靈能骰、吟遊激勵仍為手動扣除。天界顯化僅追加傷害，不會每次命中重扣變身次數。
+- 每回合次數、命中類型、狂暴／變身／目標狀態、法術所屬職業與學派等，依畫面說明由玩家確認；不自動追蹤戰鬥回合或防止所有其他模組的重複加傷。
+- 強力施法依牧師／德魯伊分別顯示；母特性含多個選項時，請只勾實際選擇的能力。
+- 半獸人凶蠻攻擊僅在傷害設定為重擊時可選，額外骰不再翻倍。
+- 暴徒刺殺遇奇數熟練加值時提供兩種取整，請依 GM 裁定選擇。
+- 墓穴之觸的原傷害類型轉換、吸命斬治療、狀態附加效果另行處理。
+- 閃電發射器也支援同名武器項目；鋼鐵守衛等獨立角色不會自動讀取主人資源。
+
+新增預設：
+
+- 暴徒：刺殺 — Assassination
+- 刺客：暗殺 — Assassinate
+- 凶蠻打擊 — Brutal Strike
+- 狂亂 — Frenzy
+- 神性狂怒 — Divine Fury
+- 靈能打擊 — Psionic Strike
+- 光耀打擊 — Radiant Strikes
+- 奪命之手 — Hand of Harm
+- 神聖打擊 — Divine Strike
+- 強力施法（牧師） — Potent Spellcasting
+- 死亡牽引 — Pull of Death
+- 原初打擊 — Primal Strike
+- 強力施法（德魯伊） — Potent Spellcasting
+- 月之形態 — Lunar Form
+- 奧法衝擊 — Arcane Jolt
+- 閃電發射器 — Lightning Launcher
+- 煉金學者 — Alchemical Savant
+- 化學精通 — Chemical Mastery
+- 導引精準 — Guided Precision
+- 吸命斬 — Lifedrinker
+- 光耀之魂 — Radiant Soul
+- 墓穴之觸 — Grave Touched
+- 元素親和 — Elemental Affinity
+- 強效塑能 — Empowered Evocation
+- 戰鬥激勵 — Combat Inspiration
+- 強化通靈 — Empowered Channeling
+- 天界顯化 — Celestial Revelation
+- 凶蠻攻擊 — Savage Attacks
+- 衝鋒者 — Charger
+- 巨武器大師 — Great Weapon Master
+- 魔焰專家 — Spellfire Adept
+- 塑能增幅 — Fueled Evocation
+- 冰霜之指 — Fingers of Frost
+
+驗證：50 項 JavaScript 邏輯／模擬介面測試通過。測試以 V8 相容執行器執行；尚未在實際 FVTT 13.351 + DND5e 5.3.3 + Midi-QOL 世界中實測。
+
+---
+
 # 額外傷害選擇 0.5.1
 
 目標版本：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗提供額外傷害複選框，僅列出角色擁有的法術或特性。

@@ -56,11 +56,11 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   if (!game.user.isGM || game.users.activeGM?.id !== game.user.id) return;
   const schema = game.settings.get(ID, "schemaVersion");
-  if (schema >= 5) return;
+  if (schema >= 6) return;
   const old = game.settings.get(ID, "entries");
-  const next = migrateOptions(migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old), PRESETS.slice(schema < 4 ? 5 : 7));
+  const next = migrateOptions(migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old), PRESETS.slice(schema < 4 ? 5 : schema < 5 ? 7 : 12));
   if (next !== old) await game.settings.set(ID, "entries", next);
-  await game.settings.set(ID, "schemaVersion", 5);
+  await game.settings.set(ID, "schemaVersion", 6);
 });
 
 Hooks.on("dnd5e.postBuildDamageRollConfig", (process, config, index, {formData} = {}) => {
@@ -102,7 +102,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = state.selected.has(i);
-    input.disabled = Boolean(entry.disabledReason);
+    input.disabled = Boolean(entry.disabledReason || entry.choicePending || (entry.requiresCritical && !app.config.isCritical));
     const label = document.createElement("span");
     let syncTarget = () => {};
     label.textContent = `${entry.label}：+ ${entry.formula} ${entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
@@ -110,7 +110,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
       ? `（${entry.disabledReason}）` : `（剩餘 ${entry.remaining}/${entry.maximum}，消耗 1 次）`;
     input.addEventListener("change", event => {
       event.stopPropagation();
-      if (input.checked) state.selected.add(i);
+      if (input.checked && !input.disabled) state.selected.add(i);
       else state.selected.delete(i);
       syncTarget();
       replaceExtras(app.config, state.entries, state.selected);
@@ -120,8 +120,38 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     panel.append(row);
     if (entry.note) {
       const note = document.createElement("small");
-      note.textContent = entry.disabledReason || entry.note;
+      note.textContent = entry.disabledReason || ((entry.requiresCritical && !app.config.isCritical) ? "僅重擊時可用。" : "") + entry.note;
       panel.append(note);
+    }
+    if (entry.choices) {
+      const select = document.createElement("select");
+      select.setAttribute("aria-label", entry.label + "傷害選項");
+      const placeholder = document.createElement("option");
+      placeholder.value = ""; placeholder.textContent = "請選擇傷害類型／骰子";
+      placeholder.selected = entry.choicePending;
+      select.append(placeholder);
+      entry.choices.forEach((choice, choiceIndex) => {
+        const option = document.createElement("option");
+        option.value = String(choiceIndex);
+        const typeName = choice.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[choice.type].label);
+        option.textContent = choice.formula + " " + typeName;
+        option.selected = !entry.choicePending && choice.formula === entry.formula && choice.type === entry.type;
+        select.append(option);
+      });
+      select.disabled = Boolean(entry.disabledReason);
+      select.addEventListener("change", event => {
+        event.stopPropagation();
+        const choice = select.value === "" ? undefined : entry.choices[Number(select.value)];
+        entry.choicePending = !choice;
+        if (choice) Object.assign(entry, choice);
+        input.disabled = Boolean(entry.disabledReason || entry.choicePending || (entry.requiresCritical && !app.config.isCritical));
+        if (input.disabled) { input.checked = false; state.selected.delete(i); }
+        label.textContent = entry.label + "：+ " + entry.formula + " " +
+          (entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label));
+        replaceExtras(app.config, state.entries, state.selected);
+        app.rebuild();
+      });
+      panel.append(select);
     }
     if (entry.smite) {
       const controls = document.createElement("div");

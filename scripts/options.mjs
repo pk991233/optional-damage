@@ -1,3 +1,4 @@
+import {EXTRA_PRESETS, EXTRA_KEYS, resolveExtra} from "./presets.mjs";
 import {spellSlots, smiteFormula} from "./smite.mjs";
 export const ID = "optional-damage";
 export const PRESETS = [
@@ -5,7 +6,7 @@ export const PRESETS = [
   ["偷襲", "sneak", "inherit", "偷襲;偷襲骰;偷袭;Sneak Attack;sneak-attack"],
   ["脆弱詛咒", "1d6", "necrotic", "脆弱詛咒;脆弱诅咒;Hex"],
   ["火之燃燒", "1d10", "fire", "火之燃燒;火之燃烧;Fire's Burn;fires-burn;Giant Ancestry (Fire)"],
-  ["霜之寒冷", "1d6", "cold", "霜之寒冷;霜之寒凍;霜之寒冻;Frost's Chill;frosts-chill;Giant Ancestry (Frost)"]
+  ["霜之寒冷", "1d6", "cold", "霜之刺骨;霜之寒冷;霜之寒凍;霜之寒冻;Frost's Chill;frosts-chill;Giant Ancestry (Frost)"]
   , ["至聖斬", "divine", "radiant", "至聖斬;至圣斩;Divine Smite;divine-smite"]
   , ["魔能重斬", "eldritch", "force", "魔能重斬;魔能重斩;Eldritch Smite;eldritch-smite"]
   , ["恐懼打擊（妖精漫遊者）", "fey", "psychic", "恐懼打擊;恐惧打击;Dreadful Strikes;dreadful-strikes"]
@@ -13,6 +14,7 @@ export const PRESETS = [
   , ["巨像屠夫", "colossus", "inherit", "巨像屠夫;Colossus Slayer;colossus-slayer"]
   , ["極地打擊", "polar", "cold", "極地打擊;极地打击;Polar Strikes;polar-strikes"]
   , ["祕法槍械", "firearm", "inherit", "祕法槍械;秘法槍械;奥术火器;奧術火器;Arcane Firearm;arcane-firearm"]
+  , ...EXTRA_PRESETS
 ];
 export const DEFAULTS = PRESETS.map(p => p.join(" | ")).join("\n");
 const PARENT_ALIASES = {
@@ -44,7 +46,7 @@ export function parseOptions(text, types, validate) {
     if (fields.length < 3 || fields.length > 4 || !label || !formula || (type !== "inherit" && !Object.hasOwn(types, type))) {
       throw new Error(`第 ${index + 1} 列格式錯誤：名稱 | 骰式 | 傷害類型 | 能力名稱（分號分隔）`);
     }
-    if (!["sneak","divine","eldritch","fey","gloom","colossus","polar","firearm"].includes(formula) && !validate(formula)) throw new Error(`第 ${index + 1} 列骰式錯誤：${formula}`);
+    if (!["sneak","divine","eldritch","fey","gloom","colossus","polar","firearm"].includes(formula) && !EXTRA_KEYS.has(formula) && !validate(formula)) throw new Error(`第 ${index + 1} 列骰式錯誤：${formula}`);
     const preset = PRESETS.find(p => normalizeName(label) === normalizeName(p[0])) ?? PRESETS.find(p => matches(label, p[3].split(";")));
     const aliases = (names || preset?.[3] || label).split(/[;；]/).map(s => s.trim()).filter(Boolean);
     if (aliases.some(a => !normalizeName(a))) throw new Error(`第 ${index + 1} 列能力名稱不能只有標點。`);
@@ -57,7 +59,7 @@ export function availableOptions(entries, actor, sourceItemId) {
   if (!actor) return [];
   const items = Array.from(actor.items ?? []);
   return entries.flatMap(entry => {
-    let owned = items.filter(item => ["spell", "feat"].includes(item.type)
+    let owned = items.filter(item => (["spell", "feat"].includes(item.type) || (entry.formula === "preset:launcher" && item.type === "weapon"))
       && (matches(item.name, entry.aliases) || matches(item.system?.identifier, entry.aliases)));
     if (PARENT_ALIASES[entry.formula] && sourceItemId && owned.some(item=>item.id===sourceItemId)) return [];
     const parents = PARENT_ALIASES[entry.formula] ? items.filter(item => item.type === "feat"
@@ -67,6 +69,7 @@ export function availableOptions(entries, actor, sourceItemId) {
     const fromParent = parents.length > 0 && (entry.formula === "gloom" || !owned.length);
     if (fromParent) owned = parents;
     if (!owned.length) return [];
+    if (EXTRA_KEYS.has(entry.formula)) return resolveExtra(entry, actor, owned, sourceItemId, useStatus);
     if (["fey","gloom","polar","colossus","firearm"].includes(entry.formula)) {
       const kind = entry.formula;
       if (sourceItemId && owned.some(item => item.id === sourceItemId)) return [];
@@ -145,7 +148,9 @@ export function migrateOptions(text, presets = PRESETS) {
     if (!lines.some(line => {
       const fields = line.split("|").map(s=>s.trim());
       return normalizeName(fields[0]) === normalizeName(preset[0]) ||
-        (PRESETS.indexOf(preset) < 7 && matches(fields[0], preset[3].split(";")));
+        (PRESETS.indexOf(preset) < 7 && matches(fields[0], preset[3].split(";"))) ||
+        (EXTRA_KEYS.has(preset[1]) && (fields[1] === preset[1] ||
+          (!["preset:clericPotent","preset:druidPotent"].includes(preset[1]) && matches(fields[0], preset[3].split(";")))));
     })) lines.push(preset.join(" | "));
   }
   return lines.join("\n");
@@ -160,16 +165,17 @@ export function migrateAncestryAliases(text) {
     const preset = PRESETS.slice(3,5).find(p => normalizeName(p[0]) === normalizeName(fields[0]));
     if (!preset) return line;
     const aliases = fields[3] ? fields[3].split(/[;；]/).map(s => s.trim()).filter(Boolean) : preset[3].split(";");
-    const addition = preset[3].split(";").at(-1);
-    if (aliases.some(a => normalizeName(a) === normalizeName(addition))) return line;
-    aliases.push(addition);
+    const additions = [preset[3].split(";").at(-1), ...(preset === PRESETS[4] ? ["霜之刺骨"] : [])];
+    const missing = additions.filter(addition => !aliases.some(a => normalizeName(a) === normalizeName(addition)));
+    if (!missing.length) return line;
+    aliases.push(...missing);
     return [...fields.slice(0, 3), aliases.join(";")].join(" | ");
   }).join("\n");
 }
 export function replaceExtras(config, entries, selected) {
   const base = config.rolls.filter(r => !r.options?.[ID]);
   const properties = base[0]?.options?.properties;
-  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason).map(entry => {
+  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).map(entry => {
     const type = entry.type === "inherit" ? inheritedType(config) : entry.type;
     return {
       parts: [entry.smite ? smiteFormula(entry) : entry.formula], data: base[0]?.data ?? {}, situational: false,
@@ -179,7 +185,7 @@ export function replaceExtras(config, entries, selected) {
         ...(entry.smite ? {optionalDamageSlot:{kind:entry.smite, key:entry.slotKey,
           level:entry.slots.find(s=>s.key===entry.slotKey).level, abilityId:entry.abilityId}} : {}),
         type, types: type ? [type] : [], flavor: entry.label,
-        isCritical: config.isCritical === true,
+        isCritical: !entry.noCritical && config.isCritical === true,
         ...(properties ? {properties} : {}), critical: {bonusDice: 0, bonusDamage: ""}
       }
     };
