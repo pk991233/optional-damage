@@ -104,6 +104,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     input.checked = state.selected.has(i);
     input.disabled = Boolean(entry.disabledReason);
     const label = document.createElement("span");
+    let syncTarget = () => {};
     label.textContent = `${entry.label}：+ ${entry.formula} ${entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
     if (entry.consumes) label.textContent += entry.disabledReason
       ? `（${entry.disabledReason}）` : `（剩餘 ${entry.remaining}/${entry.maximum}，消耗 1 次）`;
@@ -111,6 +112,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
       event.stopPropagation();
       if (input.checked) state.selected.add(i);
       else state.selected.delete(i);
+      syncTarget();
       replaceExtras(app.config, state.entries, state.selected);
       app.rebuild();
     });
@@ -141,8 +143,23 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
         const targetLabel = document.createElement("label");
         const target = document.createElement("input");
         target.type = "checkbox"; target.checked = entry.specialTarget;
-        target.disabled = Boolean(entry.disabledReason);
-        target.addEventListener("change", event => {entry.specialTarget = target.checked; refresh(event);});
+        syncTarget = () => {
+          target.disabled = !state.selected.has(i) || Boolean(entry.disabledReason);
+          if (target.disabled) {
+            target.checked = false;
+            entry.specialTarget = false;
+            if (entry.slotKey) {
+              entry.formula = smiteFormula(entry);
+              label.textContent = `${entry.label}：+ ${entry.formula} ${game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
+            }
+          }
+        };
+        syncTarget();
+        target.addEventListener("change", event => {
+          syncTarget();
+          entry.specialTarget = !target.disabled && target.checked;
+          refresh(event);
+        });
         targetLabel.append(target, document.createTextNode("目標為邪魔 Fiend／亡靈 Undead：+1d8"));
         controls.append(targetLabel);
       }

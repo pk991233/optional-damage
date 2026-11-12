@@ -110,3 +110,25 @@ test('migration adds only smites, preserves deleted presets/custom formulas and 
   const custom='Divine Smite | 3d8 | radiant';
   assert.ok(migrateOptions(custom,PRESETS.slice(5)).startsWith(custom));
 });
+test('Document.update may replace dotted keys with nested data without breaking verification or refunds',async()=>{
+  const {actor,config}=setup();
+  const update=actor.update;
+  actor.update=async function(data) {
+    await update.call(this,data);
+    const nested={};
+    for(const [path,value] of Object.entries(data)) {
+      nested[path.split('.')[2]]={value}; delete data[path];
+    }
+    data.system={spells:nested};
+    return this;
+  };
+  const rolls=selected(actor,config,['divine','eldritch']);
+  await consumptionWrapper(async()=>{})(rolls,config);
+  assert.equal(actor.system.spells.spell1.value,1);
+  assert.equal(actor.system.spells.pact.value,1);
+  const list=availableOptions(entries,actor).filter(e=>e.smite==='divine'||e.consumes);
+  replaceExtras(config,list,new Set([0,1]));
+  actor.updateEmbeddedDocuments=async()=>{throw Error('item save');};
+  await assert.rejects(consumptionWrapper(async()=>{})(config.rolls,config),/item save/);
+  assert.equal(actor.system.spells.spell1.value,1);
+});

@@ -1,4 +1,4 @@
-# 額外傷害選擇 0.4.0
+# 額外傷害選擇 0.4.1
 
 目標版本：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗提供額外傷害複選框，僅列出角色擁有的法術或特性。
 
@@ -6,9 +6,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.4.0.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.4.1.zip)
 
-已安裝者檢查更新至 0.4.0，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
+已安裝者檢查更新至 0.4.1，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
 
 ## 預設
 
@@ -68,3 +68,10 @@ Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/modul
 26 項自動測試通過。包含升環、特殊目標、雙重斬共用資源、取消、並行、資源更新失敗等。尚未在實際 Foundry／Midi-QOL 驗證。跨用戶同時操作仍無鎖定；混合血統與重斬需要分別更新角色與特性，若後者失敗會嘗試退還法術位，無法保證跨文件交易；出錯請檢查資源。
 
 規則參照：[Divine Smite](https://www.dndbeyond.com/spells/2618833-divine-smite)、[Warlock / Eldritch Smite](https://www.dndbeyond.com/classes/2190885-warlock)。
+
+## 0.4.1 修正
+
+- 修正扣法術位後讀取 undefined.value：更新流程可能將傳入物件的點分隔鍵展開為巢狀物件，現以獨立快照驗證與退款，不再讀取被改寫的鍵。
+- 只有勾選至聖斬時，才能勾選邪魔／亡靈 +1d8；取消至聖斬會同步清除該勾選及加傷，重新勾選時不保留。
+- 28 項測試通過，新增更新資料變形及實際視窗事件處理器的回歸測試；尚未在使用者的 Foundry／Midi-QOL 世界實測。
+- 0.4.0 報錯發生在扣位之後，該次法術位可能已消耗；重試前請檢查角色卡，依實際狀況手動補回。

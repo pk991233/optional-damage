@@ -24,10 +24,13 @@ export function consumptionWrapper(original, onError = () => {}) {
       const result = await original.call(this, rolls, config, ...args);
       const changes = updates(); // Recheck after asynchronous dice evaluation.
       const slots = slotUpdates(actor, unpaid);
-      const before = Object.fromEntries(Object.keys(slots).map(path => [path, actor.system.spells[path.split('.')[2]].value]));
-      if (Object.keys(slots).length) {
-        await actor.update(slots);
-        if (Object.entries(slots).some(([path,value]) => actor.system.spells[path.split('.')[2]].value !== value)) {
+      // Document.update may expand/mutate its input. Keep an independent immutable snapshot.
+      const slotEntries = Object.entries(slots);
+      const readSlot = path => actor.system?.spells?.[path.split('.')[2]]?.value;
+      const before = Object.fromEntries(slotEntries.map(([path]) => [path, readSlot(path)]));
+      if (slotEntries.length) {
+        await actor.update({...slots});
+        if (slotEntries.some(([path,value]) => readSlot(path) !== value)) {
           throw new Error("法術位更新未完成，請檢查角色卡後重試。");
         }
       }
@@ -38,8 +41,8 @@ export function consumptionWrapper(original, onError = () => {}) {
         }
       } catch (error) {
         // Compensate the slot write if the subsequent item write fails. Never overwrite a newer value.
-        if (Object.keys(slots).length && Object.entries(slots).every(([path,value]) => actor.system.spells[path.split('.')[2]].value === value)) {
-          try { await actor.update(before); }
+        if (slotEntries.length && slotEntries.every(([path,value]) => readSlot(path) === value)) {
+          try { await actor.update({...before}); }
           catch { throw new Error("特性扣除失敗，法術位也無法退還；請 GM 檢查角色資源。"); }
         }
         throw error;
