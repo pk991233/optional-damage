@@ -14,7 +14,7 @@
 
 https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-GitHub 下載頁：https://github.com/pk991233/optional-damage/releases/tag/v0.1.0
+ZIP 直接下載：https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.1.0.zip
 
 ## 設定
 
