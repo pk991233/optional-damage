@@ -1,4 +1,4 @@
-import {ID, DEFAULTS, parseOptions, replaceExtras} from "./options.mjs";
+import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, inheritedType} from "./options.mjs";
 
 const states = new WeakMap();
 
@@ -7,6 +7,7 @@ function entries() {
 }
 
 Hooks.once("init", () => {
+  game.settings.register(ID, "schemaVersion", {scope: "world", config: false, type: Number, default: 0});
   game.settings.register(ID, "entries", {
     scope: "world", config: false, type: String, default: DEFAULTS
   });
@@ -40,9 +41,25 @@ Hooks.once("init", () => {
   }
   game.settings.registerMenu(ID, "configure", {
     name: "額外傷害選項", label: "編輯額外傷害", icon: "fas fa-dice",
-    hint: "設定玩家可以勾選的額外傷害，所有角色共用此清單。",
+    hint: "設定額外傷害及能力名稱；只顯示目前角色擁有的法術或特性。",
     type: DamageOptionsSettings, restricted: true
   });
+});
+
+Hooks.once("ready", async () => {
+  if (!game.user.isGM || game.users.activeGM?.id !== game.user.id) return;
+  if (game.settings.get(ID, "schemaVersion") >= 2) return;
+  const old = game.settings.get(ID, "entries");
+  const next = migrateOptions(old);
+  if (next !== old) await game.settings.set(ID, "entries", next);
+  await game.settings.set(ID, "schemaVersion", 2);
+});
+
+Hooks.on("dnd5e.postBuildDamageRollConfig", (process, config, index, {formData} = {}) => {
+  if (!config.options?.optionalDamageInherit) return;
+  const type = inheritedType(process, formData);
+  config.options.type = type;
+  config.options.types = type ? [type] : [];
 });
 
 Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
@@ -57,7 +74,11 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
 
   let state = states.get(app);
   if (!state) {
-    try { state = {entries: entries(), selected: new Set()}; }
+    try {
+      const subject = app.config.subject;
+      const actor = subject?.actor ?? subject?.item?.actor;
+      state = {entries: availableOptions(entries(), actor), selected: new Set()};
+    }
     catch (error) { ui.notifications.error(error.message); return; }
     states.set(app, state);
   }
@@ -74,7 +95,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     input.type = "checkbox";
     input.checked = state.selected.has(i);
     const label = document.createElement("span");
-    label.textContent = `${entry.label}：+ ${entry.formula} ${game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
+    label.textContent = `${entry.label}：+ ${entry.formula} ${entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
     input.addEventListener("change", event => {
       event.stopPropagation();
       if (input.checked) state.selected.add(i);

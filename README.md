@@ -1,60 +1,61 @@
-# 額外傷害選擇 0.1.0
+# 額外傷害選擇 0.2.0
 
-目標環境：Foundry VTT 13.351 / DnD5e 5.3.3。
-此為初版測試模組，已對照該版本系統原始碼並執行獨立邏輯測試；尚未在實際 Foundry 世界驗證 UI 或其他模組相容性。
+適用目標：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗可複選附傷，並依目前擲骰角色的法術與特性篩選。
 
-## 安裝
+## 安裝與更新
 
-1. 解壓縮 ZIP，把 `optional-damage` 整個資料夾放入 Foundry 使用者資料目錄的 `Data/modules/`。
-2. 確認路徑為 `Data/modules/optional-damage/module.json`，不要多包一層資料夾。
-3. 重新啟動 Foundry，在世界的「管理模組」啟用「額外傷害選擇 Optional Damage」。
-4. 一般點擊武器或法術的傷害擲骰，於原生傷害視窗勾選「獵人印記：+1d6 力場」，再按普通或重擊。
-
-也可以在 Foundry 的「安裝模組」貼上以下 Manifest URL：
+在 Foundry「附加模組 → 安裝模組」貼上：
 
 https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-ZIP 直接下載：https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.1.0.zip
+已安裝者可在模組管理畫面檢查更新，確認版本為 0.2.0，再進世界啟用模組。GM 進世界後會自動補入新增預設，保留既有自訂行與公式；原本完全清空的清單保持停用。
 
-## 設定
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.2.0.zip)：解壓縮後將 optional-damage 放入 Data/modules/，重新啟動 Foundry。
 
-GM：設定遊戲 → 模組設定 → 額外傷害選擇 → 編輯額外傷害。
-每行格式：名稱 | 骰式 | 傷害類型代碼。例如：
+## 預設
+
+| 選項 | 額外傷害 | 比對能力 |
+|---|---|---|
+| 獵人印記 | 1d6 力場 | 獵人印記 / Hunter's Mark |
+| 偷襲 | 遊蕩者等級除以 2、向上取整個 d6 | 偷襲 / Sneak Attack |
+| 脆弱詛咒 | 1d6 暗蝕 | 脆弱詛咒 / Hex |
+| 火之燃燒 | 1d10 火焰 | 火之燃燒 / Fire's Burn |
+| 霜之寒冷 | 1d6 寒冷 | 霜之寒冷、霜之寒凍 / Frost's Chill |
+
+偷襲沿用第一筆傷害類型，並跟隨傷害視窗選擇的類型改變。只計算遊蕩者職業等級，不使用角色總等級；若沒有可辨識的遊蕩者職業，隱藏自動偷襲，可在設定改為固定骰式。
+
+## 能力檢測
+
+- 僅查詢目前擲骰角色擁有的 spell / feat 物品，不以目前選取 Token 代替。
+- 比對物品名稱與 system.identifier，支援大小寫、空白、標點差異及括號內的完整中英文名稱。
+- 不搜尋描述文字，不以種族名稱「哥利亞」推定擁有全部血統能力，也不搜尋物品目錄或合集。
+- 例如 Fire’s Burn (Fire Giant)、火之燃燒 (Fire's Burn) 都可比對。
+- 若只有一個「巨人血統」物品，必須把已選擇的火之燃燒建立為獨立特性，或把該物品名稱加入對應選項的別名；不要替未選擇的血統新增別名。
+- 找不到角色或沒有符合能力時，不顯示額外傷害區塊。
+
+## GM 自訂
+
+設定遊戲 → 模組設定 → 額外傷害選擇 → 編輯額外傷害。
+
+每行格式：`顯示名稱 | 骰式 | 傷害類型 | 對應能力名稱`，別名以分號分隔。
 
 ```
-獵人印記 | 1d6 | force
-魔能附傷 | 1d6 | necrotic
-火焰附傷 | 1d8 | fire
+脆弱詛咒 | 1d6 | necrotic | 脆弱詛咒;Hex
+偷襲 | sneak | inherit | 偷襲;Sneak Attack
+火之燃燒 | 1d10 | fire | 火之燃燒;Fire's Burn
+自製附傷 | 1d8 | radiant | 自製特性名稱
 ```
 
-這些是可自訂的選項，不會自動施放法術。清單為世界共用，所有角色都能看見；每次新開視窗均不預先勾選，可以複選。
-傷害以獨立的 typed DamageRoll 加入當次原生傷害流程，沿用系統普通／重擊處理。重擊時額外骰通常加倍，並遵循世界重擊設定。其他來源的重擊專屬額外骰不會重複複製給附傷。
+省略第四欄時，內建選項使用內建別名，自訂選項使用顯示名稱。`sneak` 為自動偷襲骰，`inherit` 為主要傷害類型。不同中文翻譯可自行加入第四欄。
 
-## 範圍與限制
+## 限制與驗證
 
-- 玩家自行確認命中、標記目標、專注、能力資格與每回合次數；不消耗法術位、充能或反應。
-- 若角色物品、效果或 Midi-QOL 已經加入相同傷害，不要再勾選。
-- 必須顯示系統原生傷害設定視窗。快捷鍵略過視窗或自動擲傷害時，不會彈出本選項，也不會自動加傷害。
-- Midi-QOL / Ready Set Roll 等修改擲骰流程的模組尚未實測。先以原生流程驗證，再測試你的模組組合。
-- 純治療視窗不顯示；混合治療與傷害的特殊活動仍須人工判斷。
-- 不會自動尋找角色的獵人印記物品或判斷法術等級。
+只檢測「擁有」法術或特性，不檢查法術準備、施放狀態、專注、目標標記、命中、武器資格、每回合次數或剩餘使用次數；不自動扣除資源，也不套用冰霜減速。
 
-## 實機驗收
+每次開啟視窗預設皆未勾選，可複選。已由其他效果加入的傷害請勿重複勾選。原生普通／重擊處理沿用系統設定。
 
-1. 未勾選：傷害與原本相同。
-2. 普通 + 獵人印記：多一筆 1d6 力場。
-3. 重擊 + 獵人印記：標準重擊設定下，多一筆 2d6 力場。
-4. 勾選、取消、再勾選：不得重複累加；重新開視窗全部未勾。
-5. 同時勾選兩項：各自保留傷害類型；確認聊天卡與傷害套用。
-6. 玩家帳號可以勾選，但無法更改世界選項；取消視窗不擲骰。
-7. 治療視窗不顯示，快捷鍵略過視窗不加傷害。
-8. 最後再啟用 Midi-QOL 等其他模組測試；若失敗，提供模組版本、錯誤訊息與傷害視窗截圖。
+必須開啟原生傷害視窗；快捷鍵略過視窗與自動傷害不會顯示選項。純治療視窗不顯示。Midi-QOL 等修改擲骰流程的模組尚未實機驗證。
 
-## 實作依據
+已通過 JavaScript 語法檢查與 8 項獨立邏輯測試（名稱篩選、職業等級、舊設定遷移、多選、取消、傷害類型等）。尚未在實際 Foundry 世界驗證 UI、聊天卡或資源互動。
 
-對照官方 release-5.3.3：
-- https://github.com/foundryvtt/dnd5e/blob/release-5.3.3/module/applications/dice/roll-configuration-dialog.mjs
-- https://github.com/foundryvtt/dnd5e/blob/release-5.3.3/module/applications/dice/damage-configuration-dialog.mjs
-- https://github.com/foundryvtt/dnd5e/blob/release-5.3.3/module/dice/damage-roll.mjs
-
-使用 renderDamageRollConfigurationDialog hook、config.rolls 與公開 rebuild()，不覆寫系統擲骰函式。
+實機檢查：讓兩名角色分別擁有不同特性，確認清單不同；測試 3 級遊蕩者偷襲為 2d6；切換主要傷害類型、取消與重開視窗；最後再測試其他模組組合。
