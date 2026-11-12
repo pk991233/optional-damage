@@ -1,6 +1,8 @@
 import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from "./options.mjs";
 
 import {consumptionWrapper} from "./consumption.mjs";
+import {PRESETS} from "./options.mjs";
+import {smiteFormula} from "./smite.mjs";
 const states = new WeakMap();
 Hooks.once("ready", () => {
   const cls = CONFIG.Dice.DamageRoll;
@@ -54,11 +56,11 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   if (!game.user.isGM || game.users.activeGM?.id !== game.user.id) return;
   const schema = game.settings.get(ID, "schemaVersion");
-  if (schema >= 3) return;
+  if (schema >= 4) return;
   const old = game.settings.get(ID, "entries");
-  const next = migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old);
+  const next = migrateOptions(migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old), PRESETS.slice(5));
   if (next !== old) await game.settings.set(ID, "entries", next);
-  await game.settings.set(ID, "schemaVersion", 3);
+  await game.settings.set(ID, "schemaVersion", 4);
 });
 
 Hooks.on("dnd5e.postBuildDamageRollConfig", (process, config, index, {formData} = {}) => {
@@ -114,6 +116,39 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     });
     row.append(input, label);
     panel.append(row);
+    if (entry.smite) {
+      const controls = document.createElement("div");
+      const select = document.createElement("select");
+      select.setAttribute("aria-label", `${entry.label}消耗的法術位`);
+      select.disabled = Boolean(entry.disabledReason);
+      for (const slot of entry.slots) {
+        const option = document.createElement("option");
+        option.value = slot.key; option.textContent = slot.label;
+        option.disabled = slot.value < 1; option.selected = slot.key === entry.slotKey;
+        select.append(option);
+      }
+      const refresh = event => {
+        event.stopPropagation();
+        if (!entry.slotKey) return;
+        entry.formula = smiteFormula(entry);
+        label.textContent = `${entry.label}：+ ${entry.formula} ${game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
+        replaceExtras(app.config, state.entries, state.selected);
+        app.rebuild();
+      };
+      select.addEventListener("change", event => {entry.slotKey = select.value; refresh(event);});
+      controls.append(select);
+      if (entry.smite === "divine") {
+        const targetLabel = document.createElement("label");
+        const target = document.createElement("input");
+        target.type = "checkbox"; target.checked = entry.specialTarget;
+        target.disabled = Boolean(entry.disabledReason);
+        target.addEventListener("change", event => {entry.specialTarget = target.checked; refresh(event);});
+        targetLabel.append(target, document.createTextNode("目標為邪魔 Fiend／亡靈 Undead：+1d8"));
+        controls.append(targetLabel);
+      }
+      if (entry.disabledReason) controls.append(document.createTextNode(entry.disabledReason));
+      panel.append(controls);
+    }
   });
   const hint = document.createElement("small");
   hint.textContent = "請自行確認觸發條件；已由其他效果加入的傷害，請勿重複勾選。";

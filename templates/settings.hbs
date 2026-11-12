@@ -4,7 +4,8 @@
   <textarea name="entries" rows="10" aria-label="額外傷害選項">{{entries}}</textarea>
   <p>多個對應名稱用分號分隔，任一名稱符合即可顯示。省略最後欄時使用預設別名或顯示名稱。只比對角色擁有的法術與特性名稱／識別碼，不搜尋描述。</p>
   <p>sneak 依遊蕩者等級產生偷襲骰；inherit 沿用第一筆傷害類型。找不到遊蕩者等級時不顯示自動偷襲，可改填固定骰式。</p>
-  <p>清空內容可停用選項。骰式支援角色資料，例如 1d6 + @prof。這裡只檢查擁有能力，不判斷專注、命中或剩餘次數。</p>
+  <p>divine 為至聖斬（2024），eldritch 為魔能重斬：提供法術位選單並自動扣除；魔能重斬只用契約位。至聖斬可勾選邪魔／亡靈加 1d8。</p>
+  <p>清空內容可停用選項。骰式支援角色資料，例如 1d6 + @prof。火霜血統會檢查並扣除特性次數，重斬會檢查法術位；不判斷專注、命中或動作限制。</p>
   <div class="optional-damage-types">{{#each types}}<span>{{label}}：<code>{{code}}</code></span>{{/each}}</div>
   <button type="submit"><i class="fas fa-save"></i> 儲存</button>
 </form>

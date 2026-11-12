@@ -1,4 +1,4 @@
-# 額外傷害選擇 0.3.0
+# 額外傷害選擇 0.4.0
 
 目標版本：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗提供額外傷害複選框，僅列出角色擁有的法術或特性。
 
@@ -6,9 +6,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.3.0.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.4.0.zip)
 
-已安裝者檢查更新至 0.3.0，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
+已安裝者檢查更新至 0.4.0，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
 
 ## 預設
 
@@ -44,6 +44,27 @@ Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/modul
 
 消耗僅支援特性物品本身的 uses，不支援活動專屬次數或指向其他物品的共用資源。同一瀏覽器內同角色多個視窗依序處理；不同玩家或 GM 同時操作同角色不保證跨用戶鎖定，請避免同時扣同一資源。聊天訊息發送失敗不會退還已消耗次數。
 
-17 項 Node 測試通過，涵蓋火霜獨立扣次數、同時選取、取消、重擊、餘額不足、寫入失敗、同瀏覽器並行擲骰與名稱比對。尚未在實際 Foundry 世界及 Midi-QOL 組合中驗證，請先用測試角色確認 UI 與角色卡同步。
+26 項 Node 測試通過，涵蓋火霜獨立扣次數、同時選取、取消、重擊、餘額不足、寫入失敗、同瀏覽器並行擲骰與名稱比對。尚未在實際 Foundry 世界及 Midi-QOL 組合中驗證，請先用測試角色確認 UI 與角色卡同步。
 
 0.3.0 新增火霜次數連動；修正純標點別名誤配及冒號子特性誤認為偷襲。額外傷害列的原生臨時加值欄位仍不生效，請在模組設定調整公式。
+
+## 0.4.0：至聖斬與魔能重斬
+
+角色擁有至聖斬／Divine Smite 法術或特性時，顯示至聖斬；擁有魔能重斬／Eldritch Smite 時顯示魔能重斬。更新後由 active GM 自動加入這兩項預設，保留自訂內容與已刪除的舊預設；完全清空的清單仍停用。
+
+- 至聖斬採 2024 公式：所選環級 + 1 顆 d8 光耀傷害；勾選「目標為邪魔 Fiend／亡靈 Undead」再加 1d8。例：三環為 4d8，符合目標條件則 5d8。可選一般法術位或契約位。
+- 魔能重斬：所選契約位環級 + 1 顆 d8 力場傷害，依法只允許契約魔法法術位。角色只有一種契約位環級時，選單只會有該環級；一般法術位不列入。
+- 選單顯示剩餘數量。勾選能力並完成擲骰才扣所選資源；取消不扣，重擊仍只扣一個位。同時使用兩種重斬須消耗兩個法術位，若共用契約池會合併檢查數量。
+- 目標加傷由玩家勾選確認，不自動讀取目標。未自動檢查命中、近戰／契約武器、附贈動作、每回合一次、每回合法術位施法限制；也不自動使目標伏地。不處理聖武士的免費施放次數。請勿先用原生能力扣位後又勾選同一能力。
+- 直接擲重斬法術／特性本身傷害時，不再列出同一能力。若想沿用選單，自訂骰式欄必須填 divine 或 eldritch；填固定骰式則視為普通加傷。
+
+自訂格式：
+
+```
+至聖斬 | divine | radiant | 至聖斬;Divine Smite
+魔能重斬 | eldritch | force | 魔能重斬;Eldritch Smite
+```
+
+26 項自動測試通過。包含升環、特殊目標、雙重斬共用資源、取消、並行、資源更新失敗等。尚未在實際 Foundry／Midi-QOL 驗證。跨用戶同時操作仍無鎖定；混合血統與重斬需要分別更新角色與特性，若後者失敗會嘗試退還法術位，無法保證跨文件交易；出錯請檢查資源。
+
+規則參照：[Divine Smite](https://www.dndbeyond.com/spells/2618833-divine-smite)、[Warlock / Eldritch Smite](https://www.dndbeyond.com/classes/2190885-warlock)。

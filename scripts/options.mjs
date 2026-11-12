@@ -1,3 +1,4 @@
+import {spellSlots, smiteFormula} from "./smite.mjs";
 export const ID = "optional-damage";
 export const PRESETS = [
   ["獵人印記", "1d6", "force", "獵人印記;猎人印记;Hunter's Mark;hunters-mark"],
@@ -5,6 +6,8 @@ export const PRESETS = [
   ["脆弱詛咒", "1d6", "necrotic", "脆弱詛咒;脆弱诅咒;Hex"],
   ["火之燃燒", "1d10", "fire", "火之燃燒;火之燃烧;Fire's Burn;fires-burn;Giant Ancestry (Fire)"],
   ["霜之寒冷", "1d6", "cold", "霜之寒冷;霜之寒凍;霜之寒冻;Frost's Chill;frosts-chill;Giant Ancestry (Frost)"]
+  , ["至聖斬", "divine", "radiant", "至聖斬;至圣斩;Divine Smite;divine-smite"]
+  , ["魔能重斬", "eldritch", "force", "魔能重斬;魔能重斩;Eldritch Smite;eldritch-smite"]
 ];
 export const DEFAULTS = PRESETS.map(p => p.join(" | ")).join("\n");
 export function useStatus(item) {
@@ -32,12 +35,13 @@ export function parseOptions(text, types, validate) {
     if (fields.length < 3 || fields.length > 4 || !label || !formula || (type !== "inherit" && !Object.hasOwn(types, type))) {
       throw new Error(`第 ${index + 1} 列格式錯誤：名稱 | 骰式 | 傷害類型 | 能力名稱（分號分隔）`);
     }
-    if (formula !== "sneak" && !validate(formula)) throw new Error(`第 ${index + 1} 列骰式錯誤：${formula}`);
+    if (!["sneak","divine","eldritch"].includes(formula) && !validate(formula)) throw new Error(`第 ${index + 1} 列骰式錯誤：${formula}`);
     const preset = PRESETS.find(p => matches(label, p[3].split(";")));
     const aliases = (names || preset?.[3] || label).split(/[;；]/).map(s => s.trim()).filter(Boolean);
     if (aliases.some(a => !normalizeName(a))) throw new Error(`第 ${index + 1} 列能力名稱不能只有標點。`);
-    const consumes = PRESETS.slice(3).some(p => p === preset || aliases.some(a => matches(a, p[3].split(";"))));
-    return {label, formula, type, aliases, consumes};
+    const consumes = PRESETS.slice(3,5).some(p => p === preset || aliases.some(a => matches(a, p[3].split(";"))));
+    const smite = ["divine","eldritch"].includes(formula) ? formula : undefined;
+    return {label, formula, type, aliases, consumes, smite};
   });
 }
 export function availableOptions(entries, actor, sourceItemId) {
@@ -47,6 +51,15 @@ export function availableOptions(entries, actor, sourceItemId) {
     const owned = items.filter(item => ["spell", "feat"].includes(item.type)
       && (matches(item.name, entry.aliases) || matches(item.system?.identifier, entry.aliases)));
     if (!owned.length) return [];
+    if (entry.smite) {
+      if (sourceItemId && owned.some(item => item.id === sourceItemId)) return [];
+      const slots = spellSlots(actor, entry.smite);
+      const slotKey = slots.find(s=>s.value > 0)?.key;
+      const result = {...entry, slots, slotKey, abilityId:owned[0].id, specialTarget:false,
+        disabledReason: !actor.isOwner ? "沒有修改角色的權限" : !slotKey ? "沒有可用法術位" : ""};
+      result.formula = slotKey ? smiteFormula(result) : "—";
+      return [result];
+    }
     if (entry.consumes) {
       if (sourceItemId && owned.some(item => item.id === sourceItemId)) return [];
       const item = owned[0];
@@ -62,10 +75,10 @@ export function availableOptions(entries, actor, sourceItemId) {
     return [{...entry, formula: `${Math.ceil(level / 2)}d6`}];
   });
 }
-export function migrateOptions(text) {
+export function migrateOptions(text, presets = PRESETS) {
   const lines = text.split(/\r?\n/).filter(s => s.trim());
   if (!lines.length) return text;
-  for (const preset of PRESETS) {
+  for (const preset of presets) {
     if (!lines.some(line => matches(line.split("|")[0].trim(), preset[3].split(";")))) lines.push(preset.join(" | "));
   }
   return lines.join("\n");
@@ -77,7 +90,7 @@ export function migrateAncestryAliases(text) {
   return text.split(/\r?\n/).map(line => {
     const fields = line.split("|").map(s => s.trim());
     if (fields.length < 3 || fields.length > 4) return line;
-    const preset = PRESETS.slice(3).find(p => normalizeName(p[0]) === normalizeName(fields[0]));
+    const preset = PRESETS.slice(3,5).find(p => normalizeName(p[0]) === normalizeName(fields[0]));
     if (!preset) return line;
     const aliases = fields[3] ? fields[3].split(/[;；]/).map(s => s.trim()).filter(Boolean) : preset[3].split(";");
     const addition = preset[3].split(";").at(-1);
@@ -92,10 +105,12 @@ export function replaceExtras(config, entries, selected) {
   const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason).map(entry => {
     const type = entry.type === "inherit" ? inheritedType(config) : entry.type;
     return {
-      parts: [entry.formula], data: base[0]?.data ?? {}, situational: false,
+      parts: [entry.smite ? smiteFormula(entry) : entry.formula], data: base[0]?.data ?? {}, situational: false,
       options: {
         [ID]: true, optionalDamageInherit: entry.type === "inherit",
         ...(entry.consumes ? {optionalDamageSource: entry.sourceItemId} : {}),
+        ...(entry.smite ? {optionalDamageSlot:{kind:entry.smite, key:entry.slotKey,
+          level:entry.slots.find(s=>s.key===entry.slotKey).level, abilityId:entry.abilityId}} : {}),
         type, types: type ? [type] : [], flavor: entry.label,
         isCritical: config.isCritical === true,
         ...(properties ? {properties} : {}), critical: {bonusDice: 0, bonusDamage: ""}
