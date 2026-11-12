@@ -1,4 +1,4 @@
-# 額外傷害選擇 0.5.0
+# 額外傷害選擇 0.5.1
 
 目標版本：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗提供額外傷害複選框，僅列出角色擁有的法術或特性。
 
@@ -6,9 +6,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.5.0.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.5.1.zip)
 
-已安裝者檢查更新至 0.5.0，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
+已安裝者檢查更新至 0.5.1，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
 
 ## 預設
 
@@ -95,3 +95,11 @@ Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/modul
 每回合一次／每目標每回合一次不自動追蹤。玩家需確認武器命中、巨像屠夫目標生命未滿，以及祕法槍械確實作為奇械師法術法器且只加到一次傷害骰。祕法槍械只做法術來源過濾，不自動判斷施法職業或使用哪個法器；多種傷害時目前固定沿用第一筆傷害類型。
 
 GM 進入世界會補入五項預設；保留原有自訂內容及已刪除的舊預設，完全清空的清單仍維持停用。35 項測試通過，尚未在實際 Foundry／Midi-QOL 環境驗證新項目。
+
+## 0.5.1：母特性辨識修正
+
+- 現有 colossus 預設可辨識 Hunter's Prey／獵殺技藝／hunters-prey，不需重設清單。顯示巨像屠夫 1d8，但母特性文字包含兩種選項，無法僅由名稱知道當前選擇；介面提醒目前須選擇巨像屠夫而非滅族者。
+- 現有 gloom 預設可辨識 Dread Ambusher／恐懼伏擊／dread-ambusher，顯示幽域追獵者恐懼打擊 2d6 心靈，並扣母特性本身的使用次數。母特性明確時不需要另外存在 subclass 物品。
+- 母特性與獨立子特性同時存在時，只顯示一個選項；恐懼伏擊的母特性優先作為扣次數來源。直接擲母／子特性的傷害時不重複加入。
+- 不搜尋任意物品描述；只有上述明確的母特性名稱／識別碼可以觸發此對應。未設定充能的舊版恐懼伏擊仍停用，避免當作可無限使用的新版恐懼打擊。
+- 39 項自動測試通過，涵蓋中英文、彎引號、識別碼、母子特性共存及扣除來源；仍需實際 Foundry／Midi-QOL 驗證。

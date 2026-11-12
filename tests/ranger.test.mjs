@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {consumptionWrapper} from '../scripts/consumption.mjs';
 import {PRESETS,parseOptions,availableOptions,migrateOptions,replaceExtras} from '../scripts/options.mjs';
 const entries=parseOptions(PRESETS.slice(7).map(p=>p.join(' | ')).join('\n'),{psychic:{},cold:{}},()=>true);
 const feat=(name,system={})=>({id:name,type:'feat',name,isOwner:true,system});
@@ -58,4 +59,45 @@ test('migration adds both same-name presets once and keeps empty list disabled',
   assert.equal(next.split('\n').length,6);
   assert.equal(migrateOptions(next,PRESETS.slice(7)),next);
   assert.equal(migrateOptions('',PRESETS.slice(7)),'');
+});
+test('Hunter parent names and identifier expose Colossus with an explicit selection reminder',()=>{
+  for(const item of [feat("Hunter's Prey"),feat('Hunter’s Prey'),feat('獵殺技藝'),feat('自訂名稱',{identifier:'hunters-prey'})]) {
+    const found=availableOptions(entries,{items:[item]});
+    assert.equal(found.length,1);assert.equal(found[0].formula,'1d8');
+    assert.equal(found[0].type,'inherit');assert.match(found[0].note,/滅族者/);
+    assert.ok(!found[0].disabledReason);
+  }
+  assert.equal(availableOptions(entries,{items:[feat('Other',{description:{value:"Hunter's Prey Colossus Slayer"}})]}).length,0);
+});
+test('Hunter parent plus standalone Colossus produces one option, not a duplicate error',()=>{
+  const found=availableOptions(entries,{items:[feat("Hunter's Prey"),feat('Colossus Slayer')]});
+  assert.equal(found.length,1);assert.ok(!found[0].disabledReason);
+});
+test('Dread Ambusher parent exposes only gloom without separate subclass and owns the debit',async()=>{
+  for(const name of ['Dread Ambusher','恐懼伏擊']) {
+    const parent=feat(name,{uses:{max:2,spent:0}});
+    const child=feat('Dreadful Strike',{uses:{max:2,spent:0}});
+    const items=new Map([[parent.id,parent],[child.id,child]]);
+    items[Symbol.iterator]=items.values.bind(items);
+    const actor={uuid:'Actor.parent',items,async updateEmbeddedDocuments(type,changes){
+      changes.forEach(c=>items.get(c._id).system.uses.spent=c['system.uses.spent']);return changes;
+    }};
+    const found=availableOptions(entries,actor);
+    assert.equal(found.length,1);assert.equal(found[0].formula,'2d6');
+    assert.equal(found[0].sourceItemId,parent.id);assert.ok(!found[0].disabledReason);
+    const config={subject:{actor},rolls:[{options:{type:'piercing'}}]};
+    replaceExtras(config,found,new Set([0]));
+    await consumptionWrapper(async()=>{})(config.rolls,config);
+    assert.equal(parent.system.uses.spent,1);assert.equal(child.system.uses.spent,0);
+    assert.equal(availableOptions(entries,actor,parent.id).length,0);
+    assert.equal(availableOptions(entries,actor,child.id).length,0);
+    parent.system.uses.spent=2;
+    assert.ok(availableOptions(entries,actor)[0].disabledReason);
+  }
+});
+test('Dread parent identifier works; legacy parent without charges remains disabled',()=>{
+  const item=feat('自訂伏擊',{identifier:'dread-ambusher',uses:{max:2,spent:0}});
+  assert.equal(availableOptions(entries,{items:[item]})[0].formula,'2d6');
+  delete item.system.uses;
+  assert.ok(availableOptions(entries,{items:[item]})[0].disabledReason);
 });

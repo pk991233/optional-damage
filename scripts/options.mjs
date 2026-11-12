@@ -15,6 +15,10 @@ export const PRESETS = [
   , ["祕法槍械", "firearm", "inherit", "祕法槍械;秘法槍械;奥术火器;奧術火器;Arcane Firearm;arcane-firearm"]
 ];
 export const DEFAULTS = PRESETS.map(p => p.join(" | ")).join("\n");
+const PARENT_ALIASES = {
+  gloom: ["Dread Ambusher", "dread-ambusher", "恐懼伏擊", "恐惧伏击"],
+  colossus: ["Hunter's Prey", "hunters-prey", "獵殺技藝", "猎杀技艺"]
+};
 export function useStatus(item) {
   const maximum = item?.system?.uses?.max;
   const spent = item?.system?.uses?.spent;
@@ -55,6 +59,13 @@ export function availableOptions(entries, actor, sourceItemId) {
   return entries.flatMap(entry => {
     let owned = items.filter(item => ["spell", "feat"].includes(item.type)
       && (matches(item.name, entry.aliases) || matches(item.system?.identifier, entry.aliases)));
+    if (PARENT_ALIASES[entry.formula] && sourceItemId && owned.some(item=>item.id===sourceItemId)) return [];
+    const parents = PARENT_ALIASES[entry.formula] ? items.filter(item => item.type === "feat"
+      && (matches(item.name, PARENT_ALIASES[entry.formula]) || matches(item.system?.identifier, PARENT_ALIASES[entry.formula]))) : [];
+    // Dread Ambusher owns the charges even when a separate child feature also exists.
+    // Hunter's Prey is only a fallback; its description lists both selectable options.
+    const fromParent = parents.length > 0 && (entry.formula === "gloom" || !owned.length);
+    if (fromParent) owned = parents;
     if (!owned.length) return [];
     if (["fey","gloom","polar","colossus","firearm"].includes(entry.formula)) {
       const kind = entry.formula;
@@ -67,6 +78,7 @@ export function availableOptions(entries, actor, sourceItemId) {
         const gloom = hasSubclass(["Gloom Stalker","幽域追獵者","幽域追猎者"]);
         const explicitKind = item => {
           const names = [item.name, item.system?.identifier];
+          if (names.some(n=>matches(n,PARENT_ALIASES.gloom))) return "gloom";
           if (names.some(n=>matches(n,["Dreadful Strikes"]))) return "fey";
           if (names.some(n=>matches(n,["Dreadful Strike"]))) return "gloom";
           return undefined;
@@ -90,10 +102,13 @@ export function availableOptions(entries, actor, sourceItemId) {
       if (kind === "firearm" && items.find(item=>item.id===sourceItemId)?.type !== "spell") return [];
       const notes = {
         fey:"武器命中；每個目標每回合一次", gloom:"武器命中；每回合一次；消耗特性 1 次",
-        polar:"武器命中；每個目標每回合一次", colossus:"武器命中且目標生命未滿；每回合一次",
+        polar:"武器命中；每個目標每回合一次", colossus:fromParent
+          ? "來源：獵殺技藝；請確認目前選的是巨像屠夫而非滅族者。武器命中且目標生命未滿；每回合一次"
+          : "武器命中且目標生命未滿；每回合一次",
         firearm:"確認是透過祕法槍械施放的奇械師法術；僅一次傷害骰"
       };
       const status = kind === "gloom" ? useStatus(owned[0]) : {};
+      if (kind === "gloom" && fromParent) notes.gloom = `來源：${owned[0].name}；武器命中，每回合一次；消耗該特性 1 次`;
       return [{...entry, formula, note:notes[kind], consumes:kind === "gloom", sourceItemId:owned[0].id,
         remaining:status.remaining, maximum:status.maximum,
         disabledReason: ambiguity ? "同名能力無法區分：請設定英文識別碼或確認子職" :
