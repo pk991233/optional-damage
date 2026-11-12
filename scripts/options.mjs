@@ -7,12 +7,23 @@ export const PRESETS = [
   ["霜之寒冷", "1d6", "cold", "霜之寒冷;霜之寒凍;霜之寒冻;Frost's Chill;frosts-chill;Giant Ancestry (Frost)"]
 ];
 export const DEFAULTS = PRESETS.map(p => p.join(" | ")).join("\n");
+export function useStatus(item) {
+  const maximum = item?.system?.uses?.max;
+  const spent = item?.system?.uses?.spent;
+  const remaining = Math.max(0, maximum - spent);
+  let reason = "";
+  if (!item) reason = "找不到對應特性";
+  else if (!item.isOwner) reason = "沒有修改特性的權限";
+  else if (!Number.isFinite(maximum) || maximum <= 0 || !Number.isInteger(spent) || spent < 0) reason = "請先設定此特性本身的使用次數";
+  else if (remaining < 1) reason = "使用次數不足";
+  return {remaining, maximum, reason};
+}
 export function normalizeName(value) {
   return String(value ?? "").normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
 }
 function matches(name, aliases) {
-  const parts = [name, ...String(name ?? "").split(/[()（）\[\]【】:：/]/u)];
-  return parts.some(part => aliases.some(alias => normalizeName(part) === normalizeName(alias)));
+  const parts = [name, ...String(name ?? "").split(/[()（）\[\]【】/]/u)];
+  return parts.some(part => normalizeName(part) && aliases.some(alias => normalizeName(part) === normalizeName(alias)));
 }
 export function parseOptions(text, types, validate) {
   return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map((line, index) => {
@@ -24,16 +35,25 @@ export function parseOptions(text, types, validate) {
     if (formula !== "sneak" && !validate(formula)) throw new Error(`第 ${index + 1} 列骰式錯誤：${formula}`);
     const preset = PRESETS.find(p => matches(label, p[3].split(";")));
     const aliases = (names || preset?.[3] || label).split(/[;；]/).map(s => s.trim()).filter(Boolean);
-    return {label, formula, type, aliases};
+    if (aliases.some(a => !normalizeName(a))) throw new Error(`第 ${index + 1} 列能力名稱不能只有標點。`);
+    const consumes = PRESETS.slice(3).some(p => p === preset || aliases.some(a => matches(a, p[3].split(";"))));
+    return {label, formula, type, aliases, consumes};
   });
 }
-export function availableOptions(entries, actor) {
+export function availableOptions(entries, actor, sourceItemId) {
   if (!actor) return [];
   const items = Array.from(actor.items ?? []);
   return entries.flatMap(entry => {
-    const owned = items.some(item => ["spell", "feat"].includes(item.type)
+    const owned = items.filter(item => ["spell", "feat"].includes(item.type)
       && (matches(item.name, entry.aliases) || matches(item.system?.identifier, entry.aliases)));
-    if (!owned) return [];
+    if (!owned.length) return [];
+    if (entry.consumes) {
+      if (sourceItemId && owned.some(item => item.id === sourceItemId)) return [];
+      const item = owned[0];
+      const status = useStatus(item);
+      return [{...entry, sourceItemId: item.id, remaining: status.remaining, maximum: status.maximum,
+        disabledReason: owned.length > 1 ? "找到多個同名特性，請保留唯一對應項目" : status.reason}];
+    }
     if (entry.formula !== "sneak") return [entry];
     const rogue = items.find(item => item.type === "class"
       && (matches(item.system?.identifier, ["rogue"]) || matches(item.name, ["rogue", "遊蕩者", "游荡者", "盜賊", "盗贼"])));
@@ -69,12 +89,13 @@ export function migrateAncestryAliases(text) {
 export function replaceExtras(config, entries, selected) {
   const base = config.rolls.filter(r => !r.options?.[ID]);
   const properties = base[0]?.options?.properties;
-  const extras = entries.filter((_, i) => selected.has(i)).map(entry => {
+  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason).map(entry => {
     const type = entry.type === "inherit" ? inheritedType(config) : entry.type;
     return {
       parts: [entry.formula], data: base[0]?.data ?? {}, situational: false,
       options: {
         [ID]: true, optionalDamageInherit: entry.type === "inherit",
+        ...(entry.consumes ? {optionalDamageSource: entry.sourceItemId} : {}),
         type, types: type ? [type] : [], flavor: entry.label,
         isCritical: config.isCritical === true,
         ...(properties ? {properties} : {}), critical: {bonusDice: 0, bonusDamage: ""}

@@ -1,6 +1,11 @@
 import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from "./options.mjs";
 
+import {consumptionWrapper} from "./consumption.mjs";
 const states = new WeakMap();
+Hooks.once("ready", () => {
+  const cls = CONFIG.Dice.DamageRoll;
+  cls.buildEvaluate = consumptionWrapper(cls.buildEvaluate, error => ui.notifications.error(error.message));
+});
 
 function entries() {
   return parseOptions(game.settings.get(ID, "entries"), CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
@@ -78,7 +83,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     try {
       const subject = app.config.subject;
       const actor = subject?.actor ?? subject?.item?.actor;
-      state = {entries: availableOptions(entries(), actor), selected: new Set()};
+      state = {entries: availableOptions(entries(), actor, subject?.item?.id ?? subject?.id), selected: new Set()};
     }
     catch (error) { ui.notifications.error(error.message); return; }
     states.set(app, state);
@@ -95,8 +100,11 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = state.selected.has(i);
+    input.disabled = Boolean(entry.disabledReason);
     const label = document.createElement("span");
     label.textContent = `${entry.label}：+ ${entry.formula} ${entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
+    if (entry.consumes) label.textContent += entry.disabledReason
+      ? `（${entry.disabledReason}）` : `（剩餘 ${entry.remaining}/${entry.maximum}，消耗 1 次）`;
     input.addEventListener("change", event => {
       event.stopPropagation();
       if (input.checked) state.selected.add(i);
