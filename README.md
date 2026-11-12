@@ -1,4 +1,4 @@
-# 額外傷害選擇 0.2.0
+# 額外傷害選擇 0.2.1
 
 適用目標：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗可複選附傷，並依目前擲骰角色的法術與特性篩選。
 
@@ -8,9 +8,9 @@
 
 https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-已安裝者可在模組管理畫面檢查更新，確認版本為 0.2.0，再進世界啟用模組。GM 進世界後會自動補入新增預設，保留既有自訂行與公式；原本完全清空的清單保持停用。
+已安裝者可在模組管理畫面檢查更新，確認版本為 0.2.1，再進世界啟用模組。GM 進世界後會自動補入新增預設，保留既有自訂行與公式；原本完全清空的清單保持停用。
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.2.0.zip)：解壓縮後將 optional-damage 放入 Data/modules/，重新啟動 Foundry。
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.2.1.zip)：解壓縮後將 optional-damage 放入 Data/modules/，重新啟動 Foundry。
 
 ## 預設
 
@@ -59,3 +59,9 @@ https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 已通過 JavaScript 語法檢查與 8 項獨立邏輯測試（名稱篩選、職業等級、舊設定遷移、多選、取消、傷害類型等）。尚未在實際 Foundry 世界驗證 UI、聊天卡或資源互動。
 
 實機檢查：讓兩名角色分別擁有不同特性，確認清單不同；測試 3 級遊蕩者偷襲為 2d6；切換主要傷害類型、取消與重開視窗；最後再測試其他模組組合。
+
+## 0.2.1 更新
+
+新增 Giant Ancestry (Fire) 與 Giant Ancestry (Frost) 預設別名，分別對應火之燃燒與霜之寒冷。GM 進世界時會替既有同名預設補入別名，保留自訂骰式與傷害類型；已刪除的項目不會重新加入。
+
+本次新增兩項測試，確認兩種血統不互相匹配及舊設定遷移。先前檢查發現的冒號名稱比對、純標點別名與附傷臨時加值欄問題尚未修正。

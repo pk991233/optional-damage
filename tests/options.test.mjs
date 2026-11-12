@@ -1,8 +1,27 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseOptions, replaceExtras} from '../scripts/options.mjs';
-import {DEFAULTS, availableOptions, migrateOptions, inheritedType} from '../scripts/options.mjs';
+import {DEFAULTS, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from '../scripts/options.mjs';
 const presets = parseOptions(DEFAULTS, {force:{}, necrotic:{}, fire:{}, cold:{}}, () => true);
+test('giant ancestry Fire and Frost select only their own preset', () => {
+  for (const [name, type] of [['Giant Ancestry (Fire)', 'fire'], ['Giant Ancestry (Frost)', 'cold']]) {
+    const found = availableOptions(presets, {items:[{type:'feat', name}]});
+    assert.equal(found.length, 1);
+    assert.equal(found[0].type, type);
+  }
+  for (const name of ['Giant Ancestry', 'Giant Ancestry (Storm)']) {
+    assert.deepEqual(availableOptions(presets, {items:[{type:'feat', name}]}), []);
+  }
+});
+test('ancestry migration extends saved aliases without changing damage or resurrecting removed rows', () => {
+  const old = "火之燃燒 | 2d10 | fire | Fire's Burn;自訂火焰\n霜之寒冷 | 2d6 | cold | Frost's Chill";
+  const next = migrateAncestryAliases(old);
+  assert.ok(next.includes("2d10 | fire | Fire's Burn;自訂火焰;Giant Ancestry (Fire)"));
+  assert.ok(next.includes('Giant Ancestry (Frost)'));
+  assert.equal(migrateAncestryAliases(next), next);
+  assert.equal(migrateAncestryAliases(''), '');
+  assert.equal(migrateAncestryAliases('自製 | 1d6 | fire'), '自製 | 1d6 | fire');
+});
 test('show only owned spells and feats, never descriptions or equipment', () => {
   const actor = {items: [
     {type:'spell', name:'脆弱詛咒 (Hex)'},

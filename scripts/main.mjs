@@ -1,4 +1,4 @@
-import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, inheritedType} from "./options.mjs";
+import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from "./options.mjs";
 
 const states = new WeakMap();
 
@@ -48,11 +48,12 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", async () => {
   if (!game.user.isGM || game.users.activeGM?.id !== game.user.id) return;
-  if (game.settings.get(ID, "schemaVersion") >= 2) return;
+  const schema = game.settings.get(ID, "schemaVersion");
+  if (schema >= 3) return;
   const old = game.settings.get(ID, "entries");
-  const next = migrateOptions(old);
+  const next = migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old);
   if (next !== old) await game.settings.set(ID, "entries", next);
-  await game.settings.set(ID, "schemaVersion", 2);
+  await game.settings.set(ID, "schemaVersion", 3);
 });
 
 Hooks.on("dnd5e.postBuildDamageRollConfig", (process, config, index, {formData} = {}) => {

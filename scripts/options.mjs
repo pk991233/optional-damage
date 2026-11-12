@@ -3,8 +3,8 @@ export const PRESETS = [
   ["獵人印記", "1d6", "force", "獵人印記;猎人印记;Hunter's Mark;hunters-mark"],
   ["偷襲", "sneak", "inherit", "偷襲;偷襲骰;偷袭;Sneak Attack;sneak-attack"],
   ["脆弱詛咒", "1d6", "necrotic", "脆弱詛咒;脆弱诅咒;Hex"],
-  ["火之燃燒", "1d10", "fire", "火之燃燒;火之燃烧;Fire's Burn;fires-burn"],
-  ["霜之寒冷", "1d6", "cold", "霜之寒冷;霜之寒凍;霜之寒冻;Frost's Chill;frosts-chill"]
+  ["火之燃燒", "1d10", "fire", "火之燃燒;火之燃烧;Fire's Burn;fires-burn;Giant Ancestry (Fire)"],
+  ["霜之寒冷", "1d6", "cold", "霜之寒冷;霜之寒凍;霜之寒冻;Frost's Chill;frosts-chill;Giant Ancestry (Frost)"]
 ];
 export const DEFAULTS = PRESETS.map(p => p.join(" | ")).join("\n");
 export function normalizeName(value) {
@@ -52,6 +52,19 @@ export function migrateOptions(text) {
 }
 export function inheritedType(config, formData) {
   return formData?.get("roll.0.damageType") || config.rolls[0]?.options?.type || config.rolls[0]?.options?.types?.[0];
+}
+export function migrateAncestryAliases(text) {
+  return text.split(/\r?\n/).map(line => {
+    const fields = line.split("|").map(s => s.trim());
+    if (fields.length < 3 || fields.length > 4) return line;
+    const preset = PRESETS.slice(3).find(p => normalizeName(p[0]) === normalizeName(fields[0]));
+    if (!preset) return line;
+    const aliases = fields[3] ? fields[3].split(/[;；]/).map(s => s.trim()).filter(Boolean) : preset[3].split(";");
+    const addition = preset[3].split(";").at(-1);
+    if (aliases.some(a => normalizeName(a) === normalizeName(addition))) return line;
+    aliases.push(addition);
+    return [...fields.slice(0, 3), aliases.join(";")].join(" | ");
+  }).join("\n");
 }
 export function replaceExtras(config, entries, selected) {
   const base = config.rolls.filter(r => !r.options?.[ID]);
