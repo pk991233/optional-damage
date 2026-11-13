@@ -1,3 +1,17 @@
+# v0.8.0：玩家個人自訂與快捷新增
+
+- 所有人可至「設定 → 模組設定 → 額外傷害選擇 → 我的自訂附傷 → 管理個人附傷」管理自己的清單。
+- 個人資料存於目前世界的使用者帳號旗標，不修改世界預設、GM 自訂或其他玩家資料；只在該使用者操作擲骰時合併使用。GM 代骰不自動套用玩家個人清單。
+- GM 的「編輯額外傷害」仍管理世界清單；玩家無法修改世界設定。
+- 世界與個人自訂區皆提供「快捷新增附傷」：名稱 → 骰子數量 → 骰面 → 固定加值 → 傷害類型 → 對應能力名稱。
+- 可返回上一步或取消。完成只新增至目前編輯清單，按「儲存」才會保存；尚未儲存的其他文字不會被清除。
+- 支援 d4/d6/d8/d10/d12/d20/d100、正負固定加值、沿用主要傷害類型。進階公式仍可在文字區編輯。
+- 對應能力留空使用附傷名稱；多個能力以分號分隔。角色仍須持有對應法術／特性。一般自訂附傷不自動扣資源。
+- 個人自訂也沿用既有去重、預設覆寫與互斥判定。不同的非預設自訂能力即使同骰式仍可使用，請自行確認沒有重複附傷。
+- 73 項 JavaScript 邏輯／模擬介面測試通過（V8 相容執行器），包含玩家儲存隔離、禁止修改世界設定、精靈返回／取消與輸入驗證；尚未在實際 Foundry 世界實測。
+
+---
+
 # v0.7.1：檢查與修正
 
 - 幽域追獵者的恐懼打擊於遊俠 11 級起改為 2d8。
@@ -94,9 +108,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.7.1.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.8.0.zip)
 
-已安裝者檢查更新至 0.7.1，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
+已安裝者檢查更新至 0.8.0，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 
 ## 預設
 

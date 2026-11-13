@@ -1,10 +1,14 @@
 <form class="optional-damage-settings">
+  {{#unless personal}}
   <h2>預設資料</h2>
   <p>勾選啟用的預設。角色仍須擁有對應能力才會出現。需要改公式或名稱時，請在下方新增自訂列；同能力的自訂列會優先使用。</p>
   <div class="optional-damage-preset-list">
     {{#each presets}}<label><input type="checkbox" name="enabled.{{id}}" {{checked enabled}}><span>{{label}}</span><code>{{formula}} · {{type}}</code></label>{{/each}}
   </div>
-  <h2>自訂資料</h2>
+  {{/unless}}
+  <h2>{{#if personal}}我的自訂資料{{else}}世界自訂資料{{/if}}</h2>
+  {{#if personal}}<p>資料保存在你的使用者帳號，僅在你操作擲骰時使用；不會修改 GM 或其他玩家的資料。角色仍須擁有對應法術或特性。GM 代骰不會自動套用你的個人清單。</p>{{/if}}
+  <button type="button" data-action="quick-add"><i class="fas fa-plus"></i> 快捷新增附傷</button>
   <p>每行：<strong>顯示名稱 | 骰式 | 傷害類型 | 對應能力名稱</strong><br>例如：自訂火焰 | 1d6 | fire | 自訂火焰;Custom Flame</p>
   <textarea name="custom" rows="9" aria-label="自訂傷害資料">{{custom}}</textarea>
   <p>多個能力名稱用分號分隔。inherit 沿用主要傷害類型；清空此區只移除自訂，不影響上方預設。</p>

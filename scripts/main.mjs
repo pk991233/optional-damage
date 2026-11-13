@@ -1,3 +1,4 @@
+import {quickAdd} from "./wizard.mjs";
 import {presetId, settingsData, splitLegacy, combinedEntries, auditCustom, conflictGroup, markExistingDamage} from "./settings.mjs";
 import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from "./options.mjs";
 
@@ -11,7 +12,9 @@ Hooks.once("ready", () => {
 });
 
 function entries() {
-  return combinedEntries(settingsData(game.settings.get(ID, "separatedEntries"), game.settings.get(ID, "entries")), CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
+  const world=settingsData(game.settings.get(ID, "separatedEntries"), game.settings.get(ID, "entries"));
+  const personal=game.user?.getFlag?.(ID,"customEntries")??"";
+  return combinedEntries({...world,custom:[world.custom,personal].filter(Boolean).join("\n")}, CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
 }
 
 Hooks.once("init", () => {
@@ -28,22 +31,48 @@ Hooks.once("init", () => {
         template: `modules/${ID}/templates/settings.hbs`
       });
     }
+    get personal() { return false; }
     getData() {
       const saved=settingsData(game.settings.get(ID,"separatedEntries"),game.settings.get(ID,"entries"));
       return {
+        personal:this.personal,
         presets:PRESETS.map(p=>({id:presetId(p),label:p[0],formula:p[1],type:p[2],enabled:!saved.disabled.includes(presetId(p))})),
-        custom:saved.custom,
-        warnings:auditCustom(saved.custom),
+        custom:this.personal?(game.user.getFlag(ID,"customEntries")??""):saved.custom,
+        warnings:auditCustom(this.personal?(game.user.getFlag(ID,"customEntries")??""):saved.custom),
         types: Object.entries(CONFIG.DND5E.damageTypes).map(([code, config]) => ({
           code, label: game.i18n.localize(config.label)
         }))
       };
     }
+    activateListeners(html) {
+      super.activateListeners(html);
+      const root=html[0]??html;
+      root.querySelector('[data-action="quick-add"]')?.addEventListener("click",async event=>{
+        event.preventDefault();
+        const button=event.currentTarget;
+        button.disabled=true;
+        try {
+          const row=await quickAdd(CONFIG.DND5E.damageTypes);
+          if(row) {
+            const area=root.querySelector('textarea[name="custom"]');
+            area.value=[area.value.trimEnd(),row].filter(Boolean).join("\n");
+            ui.notifications.info("已加入清單，請按「儲存」保存。");
+          }
+        } catch(error){ui.notifications.error(error.message);}
+        finally{button.disabled=false;}
+      });
+    }
     async _updateObject(event, formData) {
-      if (!game.user.isGM) return;
+      if (!this.personal && !game.user.isGM) return;
       try {
         const custom=String(formData.custom??"");
         parseOptions(custom, CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
+        if(this.personal) {
+          await game.user.setFlag(ID,"customEntries",custom);
+          ui.notifications.info("個人自訂附傷已儲存。下次開啟傷害視窗時生效。");
+          await this.close();
+          return;
+        }
         const checked=id=>[true,"true","on",1].includes(formData["enabled."+id]??formData.enabled?.[id]);
         const saved={version:1,custom,disabled:PRESETS.map(presetId).filter(id=>!checked(id))};
         combinedEntries(saved,CONFIG.DND5E.damageTypes,formula=>Roll.validate(formula));
@@ -55,6 +84,17 @@ Hooks.once("init", () => {
       }
     }
   }
+  class PersonalDamageSettings extends DamageOptionsSettings {
+    get personal() { return true; }
+    static get defaultOptions() {
+      return foundry.utils.mergeObject(super.defaultOptions,{id:"optional-damage-personal",title:"我的自訂附傷"});
+    }
+  }
+  game.settings.registerMenu(ID,"personalConfigure",{
+    name:"我的自訂附傷",label:"管理個人附傷",icon:"fas fa-user-plus",
+    hint:"玩家可新增自己的附傷；僅在自己操作擲骰時使用，角色仍須持有對應能力。",
+    type:PersonalDamageSettings,restricted:false
+  });
   game.settings.registerMenu(ID, "configure", {
     name: "額外傷害選項", label: "編輯額外傷害", icon: "fas fa-dice",
     hint: "設定額外傷害及能力名稱；只顯示目前角色擁有的法術或特性。",
