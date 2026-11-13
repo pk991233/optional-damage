@@ -1,3 +1,15 @@
+# v0.7.1：檢查與修正
+
+- 幽域追獵者的恐懼打擊於遊俠 11 級起改為 2d8。
+- 極地打擊支援母特性 Frigid Explorer 的偵測。
+- 閃電發射器的原武器傷害名稱不再誤判為已加入附傷；同時持有同名武器與特性時優先使用本次武器。
+- 舊清單含缺欄位資料時不再讓設定遷移報錯，原文保留於自訂區供修正。
+- 自訂固定公式仍遵守神聖打擊／強力施法等互斥規則；同一預設的多個自訂版本也不可同時使用。
+- 扣除法術位／特性次數後檢查實際結果，部分更新失敗時嘗試退還已扣資源，退還失敗時顯示明確通知。不同瀏覽器同時操作同一角色仍不保證資源交易的原子性。
+- 70 項 JavaScript 邏輯／模擬介面測試通過（V8 相容執行器）；尚未在實際 FVTT 13.351 + DND5e 5.3.3 + Midi-QOL 世界實測。
+
+---
+
 # v0.7.0：分開管理預設與自訂，補上重複附傷防護
 
 設定 → 模組設定 → 額外傷害選項 → 編輯額外傷害：
@@ -74,7 +86,7 @@
 
 ---
 
-# 額外傷害選擇 0.5.1
+# 額外傷害選擇
 
 目標版本：Foundry VTT 13.351 / DnD5e 5.3.3。原生傷害視窗提供額外傷害複選框，僅列出角色擁有的法術或特性。
 
@@ -82,9 +94,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.5.1.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.7.1.zip)
 
-已安裝者檢查更新至 0.5.1，重新載入世界。手動安裝將 ZIP 內 optional-damage 放入 Data/modules。
+已安裝者檢查更新至 0.7.1，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 
 ## 預設
 

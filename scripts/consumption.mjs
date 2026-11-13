@@ -28,23 +28,38 @@ export function consumptionWrapper(original, onError = () => {}) {
       const slotEntries = Object.entries(slots);
       const readSlot = path => actor.system?.spells?.[path.split('.')[2]]?.value;
       const before = Object.fromEntries(slotEntries.map(([path]) => [path, readSlot(path)]));
-      if (slotEntries.length) {
-        await actor.update({...slots});
-        if (slotEntries.some(([path,value]) => readSlot(path) !== value)) {
-          throw new Error("法術位更新未完成，請檢查角色卡後重試。");
-        }
-      }
+      const itemBefore = new Map(ids.map(id => [id, actor.items.get(id)?.system?.uses?.spent]));
       try {
+        if (slotEntries.length) {
+          await actor.update({...slots});
+          if (slotEntries.some(([path,value]) => readSlot(path) !== value))
+            throw new Error("法術位更新未完成，請檢查角色卡後重試。");
+        }
         if (ids.length) {
         const changed = await actor.updateEmbeddedDocuments("Item", changes);
-        if (changed.length !== changes.length) throw new Error("特性次數更新未完成，請檢查角色卡後重試。");
+        if (changed.length !== changes.length || changes.some(c => actor.items.get(c._id)?.system?.uses?.spent !== c["system.uses.spent"])) throw new Error("特性次數更新未完成，請檢查角色卡後重試。");
         }
       } catch (error) {
-        // Compensate the slot write if the subsequent item write fails. Never overwrite a newer value.
-        if (slotEntries.length && slotEntries.every(([path,value]) => readSlot(path) === value)) {
-          try { await actor.update({...before}); }
-          catch { throw new Error("特性扣除失敗，法術位也無法退還；請 GM 檢查角色資源。"); }
+        // Restore only writes with exactly the value this attempt expected.
+        const rollback = changes.filter(c => actor.items.get(c._id)?.system?.uses?.spent === c["system.uses.spent"])
+          .map(c => ({_id:c._id, "system.uses.spent":itemBefore.get(c._id)}));
+        let rollbackFailed = false;
+        if (rollback.length) {
+          try {
+            await actor.updateEmbeddedDocuments("Item", rollback);
+            rollbackFailed = rollback.some(c => actor.items.get(c._id)?.system?.uses?.spent !== c["system.uses.spent"]);
+          } catch { rollbackFailed = true; }
         }
+        // Compensate the slot write if the subsequent item write fails. Never overwrite a newer value.
+        const refundable = slotEntries.filter(([path,value]) => readSlot(path) === value);
+        if (refundable.length) {
+          const refund = Object.fromEntries(refundable.map(([path])=>[path,before[path]]));
+          try {
+            await actor.update({...refund});
+            if (refundable.some(([path])=>readSlot(path)!==before[path])) rollbackFailed=true;
+          } catch { rollbackFailed=true; }
+        }
+        if (rollbackFailed) throw new Error("資源扣除失敗且無法完整退還；請 GM 檢查法術位與特性次數。");
         throw error;
       }
       unpaid.forEach(r => paid.add(r));

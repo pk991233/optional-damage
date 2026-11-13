@@ -19,6 +19,7 @@ export const PRESETS = [
 export const DEFAULTS = PRESETS.map(p => p.join(" | ")).join("\n");
 const PARENT_ALIASES = {
   gloom: ["Dread Ambusher", "dread-ambusher", "恐懼伏擊", "恐惧伏击"],
+  polar: ["Frigid Explorer", "frigid-explorer", "極寒探索者", "寒境探索者"],
   colossus: ["Hunter's Prey", "hunters-prey", "獵殺技藝", "猎杀技艺"]
 };
 export function useStatus(item) {
@@ -68,6 +69,7 @@ export function availableOptions(entries, actor, sourceItemId) {
     // Hunter's Prey is only a fallback; its description lists both selectable options.
     const fromParent = parents.length > 0 && (entry.formula === "gloom" || !owned.length);
     if (fromParent) owned = parents;
+    if (entry.formula === "preset:launcher" && sourceItemId && owned.some(item=>item.id===sourceItemId)) owned = owned.filter(item=>item.id===sourceItemId);
     if (!owned.length) return [];
     if (entry.formula !== "preset:launcher" && sourceItemId && owned.some(item=>item.id===sourceItemId)) return [];
     if (EXTRA_KEYS.has(entry.formula)) return resolveExtra(entry, actor, owned, sourceItemId, useStatus);
@@ -95,7 +97,9 @@ export function availableOptions(entries, actor, sourceItemId) {
         });
         if (!owned.length) return [];
       }
-      let formula = kind === "gloom" ? "2d6" : "1d8";
+      const rangerLevel = Number(items.find(item => item.type === "class" &&
+        (matches(item.name,["Ranger","遊俠","游侠"]) || matches(item.system?.identifier,["ranger"])))?.system?.levels);
+      let formula = kind === "gloom" ? (rangerLevel >= 11 ? "2d8" : "2d6") : "1d8";
       if (["fey","polar"].includes(kind)) {
         const ranger = items.find(item => item.type === "class" &&
           (matches(item.name,["Ranger","遊俠","游侠"]) || matches(item.system?.identifier,["ranger"])));
@@ -178,7 +182,7 @@ export function replaceExtras(config, entries, selected) {
   const properties = base[0]?.options?.properties;
   const selectedKeys = new Set();
   const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).filter(entry => {
-    const kind=entry.presetKey;
+    const kind=entry.presetKey ?? entry.presetId;
     const group=["divineStrike","clericPotent"].includes(kind) ? "cleric-blessed" : ["primal","druidPotent"].includes(kind) ? "druid-fury" : undefined;
     const key=group ?? entry.presetId ?? JSON.stringify([entry.aliases?.map(normalizeName).sort(),entry.formula.replace(/\s/g,""),entry.type]);
     if(selectedKeys.has(key))return false;

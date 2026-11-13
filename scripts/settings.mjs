@@ -2,7 +2,7 @@ import {PRESETS, parseOptions, normalizeName} from "./options.mjs";
 export const presetId = p => p[1].startsWith("preset:") ? p[1].slice(7) : normalizeName(p[0]);
 const parts = line => line.split("|").map(s=>s.trim());
 const names = s => (s??"").split(/[;；]/).map(normalizeName).filter(Boolean).sort();
-const dynamic = f => ["sneak","divine","eldritch","fey","gloom","colossus","polar","firearm"].includes(f)||f.startsWith("preset:");
+const dynamic = f => ["sneak","divine","eldritch","fey","gloom","colossus","polar","firearm"].includes(f)||String(f??"").startsWith("preset:");
 export function identifyPreset(fields) {
  const [label,formula,,aliases]=fields;
  const byName=PRESETS.filter(p=>normalizeName(p[0])===normalizeName(label));
@@ -60,14 +60,16 @@ export function auditCustom(text) {
  return [...new Set(warnings)];
 }
 export function conflictGroup(entry) {
- const key=entry.presetKey??(entry.formula?.startsWith("preset:")?entry.formula.slice(7):"");
+ const key=entry.presetKey??entry.presetId??(entry.formula?.startsWith("preset:")?entry.formula.slice(7):"");
  if(["divineStrike","clericPotent"].includes(key))return "cleric-blessed";
  if(["primal","druidPotent"].includes(key))return "druid-fury";
- return "";
+ return entry.presetId ? "preset:"+entry.presetId : "";
 }
 export function markExistingDamage(entries,config) {
  const base=(config.rolls??[]).filter(r=>!r.options?.["optional-damage"]);
  return entries.map(e=>{
+  // Lightning Launcher is also the base weapon name, not proof of an existing rider.
+  if(e.presetKey==="launcher" || e.presetId==="launcher")return e;
   const aliases=[e.label,...e.aliases].map(normalizeName);
   const found=base.some(r=>r.options?.flavor&&aliases.includes(normalizeName(r.options.flavor)));
   return found?{...e,disabledReason:"原傷害已標示此能力，避免重複加入。"}:e;

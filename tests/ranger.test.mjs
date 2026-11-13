@@ -18,7 +18,7 @@ test('same Chinese name uses subclass and requires actual feature',()=>{
 test('English singular/plural or identifiers distinguish both without subclass',()=>{
   const actor={items:[ranger(11),feat('Dreadful Strikes'),feat('Dreadful Strike',{uses:{max:2,spent:1}})]};
   const found=availableOptions(entries,actor);
-  assert.deepEqual(found.map(e=>e.formula),['1d6','2d6']);
+  assert.deepEqual(found.map(e=>e.formula),['1d6','2d8']);
   assert.deepEqual(found.map(e=>e.consumes),[false,true]);
   actor.items[1].name='恐懼打擊';actor.items[1].system.identifier='dreadful-strikes';
   assert.equal(availableOptions(entries,actor).length,2);
