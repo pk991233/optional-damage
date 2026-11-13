@@ -48,7 +48,7 @@ test('migration preserves custom entries, does not duplicate presets, preserves 
   const old = '獵人印記 | 2d6 | force\n自製 | 1d8 | fire';
   const next = migrateOptions(old);
   assert.ok(next.startsWith(old));
-  assert.equal(next.split('\n').length, 46);
+  assert.equal(next.split('\n').length, 45);
   assert.equal(migrateOptions(next), next);
   assert.equal(migrateOptions(''), '');
 });

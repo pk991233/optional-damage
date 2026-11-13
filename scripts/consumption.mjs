@@ -36,7 +36,7 @@ export function consumptionWrapper(original, onError = () => {}) {
             throw new Error("法術位更新未完成，請檢查角色卡後重試。");
         }
         if (ids.length) {
-        const changed = await actor.updateEmbeddedDocuments("Item", changes);
+        const changed = await actor.updateEmbeddedDocuments("Item", changes.map(c=>({...c})));
         if (changed.length !== changes.length || changes.some(c => actor.items.get(c._id)?.system?.uses?.spent !== c["system.uses.spent"])) throw new Error("特性次數更新未完成，請檢查角色卡後重試。");
         }
       } catch (error) {
@@ -46,7 +46,7 @@ export function consumptionWrapper(original, onError = () => {}) {
         let rollbackFailed = false;
         if (rollback.length) {
           try {
-            await actor.updateEmbeddedDocuments("Item", rollback);
+            await actor.updateEmbeddedDocuments("Item", rollback.map(c=>({...c})));
             rollbackFailed = rollback.some(c => actor.items.get(c._id)?.system?.uses?.spent !== c["system.uses.spent"]);
           } catch { rollbackFailed = true; }
         }

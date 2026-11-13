@@ -1,3 +1,16 @@
+# v0.8.1：牧師選項、匯入名稱與資源扣除修正
+
+- 牧師 7 級起，在預設啟用且尚未偵測到單項選擇時，同時提供神聖打擊與強力施法；兩項可直接勾選，勾選另一項會取消前一項，不會停用另一項。神聖打擊預先使用光耀傷害，可切換黯蝕。
+- 偵測到明確命名／識別碼的 Divine Strike 或 Potent Spellcasting 特性（含括號中的名稱）時只提供該項；不以包含兩種選項的描述文字判斷已選擇哪一項。若兩項特性都存在則保留互斥選擇。
+- 為允許玩家選擇，牧師強力施法不再因本次來源不是戲法而隱藏；玩家須確認僅適用牧師戲法。既有手動停用的預設仍維持停用。
+- 閃電發射器可從本次 Infiltrator 活動辨識，不必另外建立同名武器。
+- 支援 Eldritch Invocations: Eldritch Smite、Eldritch Invocations: Lifedrinker，以及無識別碼的「野蠻攻擊」。
+- 次數更新及退還使用獨立的資料副本，避免更新 API 展開傳入欄位後，將已成功的寫入誤判為失敗；真正未寫入與部分失敗的檢查仍保留。
+- 移除光耀打擊內建預設，現在共 44 項。既有自訂資料保留；舊自訂的 preset:radiant 公式仍可使用。
+- 79 項 JavaScript 邏輯／模擬介面測試通過（V8 相容執行器），包含雙向互斥勾選、活動辨識、更新資料被改寫及部分失敗退還。尚未在使用者實際 FVTT／Midi-QOL 世界實測。
+
+---
+
 # v0.8.0：玩家個人自訂與快捷新增
 
 - 所有人可至「設定 → 模組設定 → 額外傷害選擇 → 我的自訂附傷 → 管理個人附傷」管理自己的清單。
@@ -108,9 +121,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.8.0.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.8.1.zip)
 
-已安裝者檢查更新至 0.8.0，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
+已安裝者檢查更新至 0.8.1，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 
 ## 預設
 

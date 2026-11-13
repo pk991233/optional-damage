@@ -37,12 +37,6 @@ export const EXTRA_PRESETS = [
     "靈能打擊;Psionic Strike"
   ],
   [
-    "光耀打擊",
-    "preset:radiant",
-    "radiant",
-    "光耀打擊;Radiant Strikes"
-  ],
-  [
     "奪命之手",
     "preset:harm",
     "necrotic",
@@ -118,7 +112,7 @@ export const EXTRA_PRESETS = [
     "吸命斬",
     "preset:lifedrinker",
     "necrotic",
-    "吸命斬;Lifedrinker"
+    "吸命斬;Lifedrinker;Eldritch Invocations: Lifedrinker"
   ],
   [
     "光耀之魂",
@@ -166,7 +160,7 @@ export const EXTRA_PRESETS = [
     "凶蠻攻擊",
     "preset:savage",
     "inherit",
-    "凶蠻攻擊;Savage Attacks"
+    "凶蠻攻擊;野蠻攻擊;Savage Attacks"
   ],
   [
     "衝鋒者",
@@ -199,7 +193,7 @@ export const EXTRA_PRESETS = [
     "冰霜之指;Fingers of Frost"
   ]
 ];
-export const EXTRA_KEYS = new Set(EXTRA_PRESETS.map(p=>p[1]));
+export const EXTRA_KEYS = new Set([...EXTRA_PRESETS.map(p=>p[1]),"preset:radiant"]);
 const CLASSES = {
  rogue:["rogue","遊蕩者","盜賊"], barbarian:["barbarian","野蠻人"], fighter:["fighter","戰士"],
  paladin:["paladin","聖騎士"], monk:["monk","武僧"], cleric:["cleric","牧師"],
@@ -255,9 +249,9 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
  if(cls&&level<min) return [];
  const source=Array.from(actor.items??[]).find(i=>i.id===sourceItemId);
  if(key!=="launcher"&&sourceItemId&&owned.some(i=>i.id===sourceItemId)) return [];
- const spellOnly=["clericPotent","druidPotent","savant","chemical","soul","affinity","evocation","channeling","spellfire","fueled"];
+ const spellOnly=["druidPotent","savant","chemical","soul","affinity","evocation","channeling","spellfire","fueled"];
  if(spellOnly.includes(key)&&source?.type!=="spell") return [];
- if(["clericPotent","druidPotent"].includes(key)&&Number(source.system?.level)!==0) return [];
+ if(["druidPotent"].includes(key)&&Number(source.system?.level)!==0) return [];
  if(key==="channeling"&&!(Number(source.system?.level)>0)) return [];
  const prof=Number(actor.system?.attributes?.prof);
  const mod=a=>Number(actor.system?.abilities?.[a]?.mod);
@@ -282,7 +276,7 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
  case "psionic":e.formula="1d"+(level>=17?12:level>=11?10:level>=5?8:6)+" + "+mod("int");break;
  case "radiant":e.formula="1d8";break;
  case "harm":e.formula="1d"+martial+" + "+mod("wis");break;
- case "divineStrike":choose([level>=14?"2d8":"1d8"],["radiant","necrotic"]);break;
+ case "divineStrike":choose([level>=14?"2d8":"1d8"],["radiant","necrotic"]);e.choicePending=false;break;
  case "primal":choose([level>=15?"2d8":"1d8"],["cold","fire","lightning","thunder"]);break;
  case "clericPotent":case "druidPotent":e.formula=String(mod("wis"));break;
  case "pull":e.formula=level>=11?"1d6":"1d4";break;

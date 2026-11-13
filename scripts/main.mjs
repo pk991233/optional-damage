@@ -136,7 +136,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     try {
       const subject = app.config.subject;
       const actor = subject?.actor ?? subject?.item?.actor;
-      state = {entries: markExistingDamage(availableOptions(entries(), actor, subject?.item?.id ?? subject?.id),app.config), selected: new Set()};
+      state = {entries: markExistingDamage(availableOptions(entries(), actor, subject?.item?.id ?? subject?.id, subject?.item ? subject : undefined),app.config), selected: new Set()};
     }
     catch (error) { ui.notifications.error(error.message); return; }
     states.set(app, state);

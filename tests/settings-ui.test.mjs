@@ -18,7 +18,7 @@ test("settings save separates checkbox state and custom text while preserving le
  const app=new Settings();
  await app._updateObject(null,{"enabled.獵人印記":true,custom:"Custom | 1d6 | force | Custom"});
  const result=saved.get("separatedEntries");
- assert.equal(result.version,1);assert.equal(result.disabled.length,44);
+ assert.equal(result.version,1);assert.equal(result.disabled.length,43);
  assert.equal(result.custom,"Custom | 1d6 | force | Custom");
  assert.equal(saved.get("entries"),"Original backup");
 });

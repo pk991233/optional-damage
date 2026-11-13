@@ -8,7 +8,7 @@ export const PRESETS = [
   ["火之燃燒", "1d10", "fire", "火之燃燒;火之燃烧;Fire's Burn;fires-burn;Giant Ancestry (Fire)"],
   ["霜之寒冷", "1d6", "cold", "霜之刺骨;霜之寒冷;霜之寒凍;霜之寒冻;Frost's Chill;frosts-chill;Giant Ancestry (Frost)"]
   , ["至聖斬", "divine", "radiant", "至聖斬;至圣斩;Divine Smite;divine-smite"]
-  , ["魔能重斬", "eldritch", "force", "魔能重斬;魔能重斩;Eldritch Smite;eldritch-smite"]
+  , ["魔能重斬", "eldritch", "force", "魔能重斬;魔能重斩;Eldritch Smite;eldritch-smite;Eldritch Invocations: Eldritch Smite"]
   , ["恐懼打擊（妖精漫遊者）", "fey", "psychic", "恐懼打擊;恐惧打击;Dreadful Strikes;dreadful-strikes"]
   , ["恐懼打擊（幽域追獵者）", "gloom", "psychic", "恐懼打擊;恐惧打击;Dreadful Strike;dreadful-strike"]
   , ["巨像屠夫", "colossus", "inherit", "巨像屠夫;Colossus Slayer;colossus-slayer"]
@@ -56,12 +56,30 @@ export function parseOptions(text, types, validate) {
     return {label, formula, type, aliases, consumes, smite};
   });
 }
-export function availableOptions(entries, actor, sourceItemId) {
+export function availableOptions(entries, actor, sourceItemId, sourceActivity) {
   if (!actor) return [];
   const items = Array.from(actor.items ?? []);
   return entries.flatMap(entry => {
     let owned = items.filter(item => (["spell", "feat"].includes(item.type) || (entry.formula === "preset:launcher" && item.type === "weapon"))
       && (matches(item.name, entry.aliases) || matches(item.system?.identifier, entry.aliases)));
+    if (["preset:divineStrike","preset:clericPotent"].includes(entry.formula)) {
+      const strike=["Divine Strike","神聖打擊"],potent=["Potent Spellcasting","強力施法","強力施法（牧師）"];
+      const explicit=aliases=>items.filter(i=>i.type==="feat" &&
+        [i.name,i.system?.identifier].some(n=>matches(n,aliases)));
+      const own=explicit(entry.formula==="preset:divineStrike"?strike:potent);
+      const other=explicit(entry.formula==="preset:divineStrike"?potent:strike);
+      if(other.length&&!own.length)return [];
+      if(own.length)owned=own;
+      // A class or parent feature permits manual choice until an explicit child is present.
+      if(!owned.length)owned=items.filter(i=>i.type==="class"&&
+        [i.name,i.system?.identifier].some(n=>matches(n,["Cleric","牧師"])));
+    }
+    if(entry.formula==="preset:launcher"&&!owned.length) {
+      const source=items.find(i=>i.id===sourceItemId);
+      const aliases=["Lightning Launcher","閃電發射器","Infiltrator","滲透者","潛入者"];
+      const activities=sourceActivity?[sourceActivity]:Array.from(source?.system?.activities?.values?.()??Object.values(source?.system?.activities??{}));
+      if(source&&activities.some(a=>[a.name,a.identifier,a.system?.identifier].some(n=>matches(n,aliases))))owned=[source];
+    }
     if (PARENT_ALIASES[entry.formula] && sourceItemId && owned.some(item=>item.id===sourceItemId)) return [];
     const parents = PARENT_ALIASES[entry.formula] ? items.filter(item => item.type === "feat"
       && (matches(item.name, PARENT_ALIASES[entry.formula]) || matches(item.system?.identifier, PARENT_ALIASES[entry.formula]))) : [];

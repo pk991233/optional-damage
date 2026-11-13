@@ -12,10 +12,10 @@ function find(a,key,spell=false) {
  if(spell&&!a.items.some(i=>i.id==="spell"))a.items.push({id:"spell",name:"Test spell",type:"spell",system:{level:0}});
  return availableOptions(entries,a,spell?"spell":undefined).find(e=>e.presetKey===key);
 }
-test("33 additions, distinct keys and no repeated existing smites or ancestries",()=>{
- assert.equal(PRESETS.length,45);
- assert.equal(new Set(PRESETS.map(p=>p[0])).size,45);
- assert.equal(new Set(PRESETS.slice(12).map(p=>p[1])).size,33);
+test("32 additions, distinct keys and no repeated existing smites or ancestries",()=>{
+ assert.equal(PRESETS.length,44);
+ assert.equal(new Set(PRESETS.map(p=>p[0])).size,44);
+ assert.equal(new Set(PRESETS.slice(12).map(p=>p[1])).size,32);
  assert.equal(PRESETS.filter(p=>p[1]==="eldritch").length,1);
 });
 test("class scaling and minimum levels",()=>{
@@ -27,11 +27,11 @@ test("class scaling and minimum levels",()=>{
  assert.equal(find(actor("Hand of Harm","Monk",11),"harm").formula,"1d10 + 3");
  assert.equal(find(actor("Pull of Death","Cleric",11),"pull").formula,"1d6");
 });
-test("potent spellcasting distinguishes classes and requires a cantrip",()=>{
+test("potent spellcasting distinguishes classes and leaves cleric conditions to player",()=>{
  const a=actor("Potent Spellcasting","Cleric",7);
  assert.ok(find(a,"clericPotent",true));assert.equal(find(a,"druidPotent",true),undefined);
  a.items.find(i=>i.id==="spell").system.level=1;
- assert.equal(find(a,"clericPotent",true),undefined);
+ assert.ok(find(a,"clericPotent",true));
  assert.equal(find(actor("Alchemical Savant","Artificer",5),"savant"),undefined);
 });
 test("choice-dependent damage blocked until chosen",()=>{
@@ -70,7 +70,7 @@ test("manual costs and recipient inspiration die choice",()=>{
 });
 test("migration preserves custom rows and empty lists and is idempotent",()=>{
  const old="Custom | 1d6 | cold\nDivine Fury | 3d8 | radiant",next=migrateOptions(old,PRESETS.slice(12));
- assert.equal(next.split("\n").length,34);assert.equal(migrateOptions(next,PRESETS.slice(12)),next);
+ assert.equal(next.split("\n").length,33);assert.equal(migrateOptions(next,PRESETS.slice(12)),next);
  assert.ok(next.startsWith(old));assert.equal(migrateOptions("",PRESETS.slice(12)),"");
  assert.match(migrateAncestryAliases("霜之寒冷 | 1d6 | cold | Giant Ancestry (Frost)"),/霜之刺骨/);
 });
