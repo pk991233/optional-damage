@@ -69,6 +69,7 @@ export function availableOptions(entries, actor, sourceItemId) {
     const fromParent = parents.length > 0 && (entry.formula === "gloom" || !owned.length);
     if (fromParent) owned = parents;
     if (!owned.length) return [];
+    if (entry.formula !== "preset:launcher" && sourceItemId && owned.some(item=>item.id===sourceItemId)) return [];
     if (EXTRA_KEYS.has(entry.formula)) return resolveExtra(entry, actor, owned, sourceItemId, useStatus);
     if (["fey","gloom","polar","colossus","firearm"].includes(entry.formula)) {
       const kind = entry.formula;
@@ -175,7 +176,14 @@ export function migrateAncestryAliases(text) {
 export function replaceExtras(config, entries, selected) {
   const base = config.rolls.filter(r => !r.options?.[ID]);
   const properties = base[0]?.options?.properties;
-  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).map(entry => {
+  const selectedKeys = new Set();
+  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).filter(entry => {
+    const kind=entry.presetKey;
+    const group=["divineStrike","clericPotent"].includes(kind) ? "cleric-blessed" : ["primal","druidPotent"].includes(kind) ? "druid-fury" : undefined;
+    const key=group ?? entry.presetId ?? JSON.stringify([entry.aliases?.map(normalizeName).sort(),entry.formula.replace(/\s/g,""),entry.type]);
+    if(selectedKeys.has(key))return false;
+    selectedKeys.add(key);return true;
+  }).map(entry => {
     const type = entry.type === "inherit" ? inheritedType(config) : entry.type;
     return {
       parts: [entry.smite ? smiteFormula(entry) : entry.formula], data: base[0]?.data ?? {}, situational: false,

@@ -1,13 +1,15 @@
 <form class="optional-damage-settings">
-  <p>每行：<strong>顯示名稱 | 骰式 | 傷害類型 | 對應法術或特性名稱</strong></p>
-  <p>例如：脆弱詛咒 | 1d6 | necrotic | 脆弱詛咒;Hex<br>例如：偷襲 | sneak | inherit | 偷襲;Sneak Attack</p>
-  <textarea name="entries" rows="10" aria-label="額外傷害選項">{{entries}}</textarea>
-  <p>多個對應名稱用分號分隔，任一名稱符合即可顯示。省略最後欄時使用預設別名或顯示名稱。只比對角色擁有的法術與特性名稱／識別碼，不搜尋描述。</p>
-  <p>sneak 依遊蕩者等級產生偷襲骰；inherit 沿用第一筆傷害類型。找不到遊蕩者等級時不顯示自動偷襲，可改填固定骰式。</p>
-  <p>divine 為至聖斬（2024），eldritch 為魔能重斬：提供法術位選單並自動扣除；魔能重斬只用契約位。至聖斬可勾選邪魔／亡靈加 1d8。</p>
-  <p>清空內容可停用選項。骰式支援角色資料，例如 1d6 + @prof。火霜血統會檢查並扣除特性次數，重斬會檢查法術位；不判斷專注、命中或動作限制。</p>
-  <div class="optional-damage-types">{{#each types}}<span>{{label}}：<code>{{code}}</code></span>{{/each}}</div>
+  <h2>預設資料</h2>
+  <p>勾選啟用的預設。角色仍須擁有對應能力才會出現。需要改公式或名稱時，請在下方新增自訂列；同能力的自訂列會優先使用。</p>
+  <div class="optional-damage-preset-list">
+    {{#each presets}}<label><input type="checkbox" name="enabled.{{id}}" {{checked enabled}}><span>{{label}}</span><code>{{formula}} · {{type}}</code></label>{{/each}}
+  </div>
+  <h2>自訂資料</h2>
+  <p>每行：<strong>顯示名稱 | 骰式 | 傷害類型 | 對應能力名稱</strong><br>例如：自訂火焰 | 1d6 | fire | 自訂火焰;Custom Flame</p>
+  <textarea name="custom" rows="9" aria-label="自訂傷害資料">{{custom}}</textarea>
+  <p>多個能力名稱用分號分隔。inherit 沿用主要傷害類型；清空此區只移除自訂，不影響上方預設。</p>
+  {{#each warnings}}<p class="notification warning">{{this}}</p>{{/each}}
+  <p>已改動的舊預設會保存在自訂區。相同骰式不代表相同能力；其他模組未標示來源的加傷，仍需自行確認。</p>
+  <details><summary>傷害類型代碼</summary><div class="optional-damage-types">{{#each types}}<span>{{label}}：<code>{{code}}</code></span>{{/each}}</div></details>
   <button type="submit"><i class="fas fa-save"></i> 儲存</button>
 </form>
-
-<p>v0.6 新預設的 preset: 識別碼會依職業等級計算傷害。傷害類型／骰面選單在擲骰視窗中選擇；手動資源消耗與觸發條件請見各選項說明。</p>

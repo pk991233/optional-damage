@@ -4,3 +4,9 @@
 .optional-damage-panel small { display: block; opacity: .8; margin-top: 8px; }
 .optional-damage-settings textarea { width: 100%; min-height: 190px; resize: vertical; }
 .optional-damage-types { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 12px; margin: 12px 0; }
+
+.optional-damage-preset-list {max-height:280px;overflow-y:auto;border:1px solid var(--color-border-light-primary,#777);padding:8px;}
+.optional-damage-preset-list label {display:flex;align-items:center;gap:8px;padding:4px;}
+.optional-damage-preset-list label span {flex:1;}
+.optional-damage-preset-list code {font-size:11px;}
+.optional-damage-settings textarea {width:100%;resize:vertical;}

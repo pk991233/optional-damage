@@ -1,3 +1,4 @@
+import {presetId, settingsData, splitLegacy, combinedEntries, auditCustom, conflictGroup, markExistingDamage} from "./settings.mjs";
 import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from "./options.mjs";
 
 import {consumptionWrapper} from "./consumption.mjs";
@@ -10,7 +11,7 @@ Hooks.once("ready", () => {
 });
 
 function entries() {
-  return parseOptions(game.settings.get(ID, "entries"), CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
+  return combinedEntries(settingsData(game.settings.get(ID, "separatedEntries"), game.settings.get(ID, "entries")), CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
 }
 
 Hooks.once("init", () => {
@@ -18,17 +19,21 @@ Hooks.once("init", () => {
   game.settings.register(ID, "entries", {
     scope: "world", config: false, type: String, default: DEFAULTS
   });
+  game.settings.register(ID, "separatedEntries", {scope:"world", config:false, type:Object, default:{version:0,disabled:[],custom:""}});
   class DamageOptionsSettings extends FormApplication {
     static get defaultOptions() {
       return foundry.utils.mergeObject(super.defaultOptions, {
-        id: "optional-damage-settings", title: "額外傷害選項", width: 580,
-        height: "auto", closeOnSubmit: false,
+        id: "optional-damage-settings", title: "額外傷害選項", width: 760,
+        height: 720, closeOnSubmit: false,
         template: `modules/${ID}/templates/settings.hbs`
       });
     }
     getData() {
+      const saved=settingsData(game.settings.get(ID,"separatedEntries"),game.settings.get(ID,"entries"));
       return {
-        entries: game.settings.get(ID, "entries"),
+        presets:PRESETS.map(p=>({id:presetId(p),label:p[0],formula:p[1],type:p[2],enabled:!saved.disabled.includes(presetId(p))})),
+        custom:saved.custom,
+        warnings:auditCustom(saved.custom),
         types: Object.entries(CONFIG.DND5E.damageTypes).map(([code, config]) => ({
           code, label: game.i18n.localize(config.label)
         }))
@@ -37,8 +42,12 @@ Hooks.once("init", () => {
     async _updateObject(event, formData) {
       if (!game.user.isGM) return;
       try {
-        parseOptions(formData.entries, CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
-        await game.settings.set(ID, "entries", formData.entries);
+        const custom=String(formData.custom??"");
+        parseOptions(custom, CONFIG.DND5E.damageTypes, formula => Roll.validate(formula));
+        const checked=id=>[true,"true","on",1].includes(formData["enabled."+id]??formData.enabled?.[id]);
+        const saved={version:1,custom,disabled:PRESETS.map(presetId).filter(id=>!checked(id))};
+        combinedEntries(saved,CONFIG.DND5E.damageTypes,formula=>Roll.validate(formula));
+        await game.settings.set(ID,"separatedEntries",saved);
         ui.notifications.info("額外傷害選項已儲存。下次開啟傷害視窗時生效。");
         await this.close();
       } catch (error) {
@@ -56,11 +65,13 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   if (!game.user.isGM || game.users.activeGM?.id !== game.user.id) return;
   const schema = game.settings.get(ID, "schemaVersion");
-  if (schema >= 6) return;
+  if (schema >= 7) return;
   const old = game.settings.get(ID, "entries");
-  const next = migrateOptions(migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old), PRESETS.slice(schema < 4 ? 5 : schema < 5 ? 7 : 12));
-  if (next !== old) await game.settings.set(ID, "entries", next);
-  await game.settings.set(ID, "schemaVersion", 6);
+  const legacy = schema < 6 ? migrateOptions(migrateAncestryAliases(schema < 2 ? migrateOptions(old) : old), PRESETS.slice(schema < 4 ? 5 : schema < 5 ? 7 : 12)) : old;
+  if (game.settings.get(ID,"separatedEntries")?.version !== 1)
+    await game.settings.set(ID,"separatedEntries",splitLegacy(legacy));
+  // Keep entries untouched as the pre-migration backup.
+  await game.settings.set(ID, "schemaVersion", 7);
 });
 
 Hooks.on("dnd5e.postBuildDamageRollConfig", (process, config, index, {formData} = {}) => {
@@ -85,7 +96,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     try {
       const subject = app.config.subject;
       const actor = subject?.actor ?? subject?.item?.actor;
-      state = {entries: availableOptions(entries(), actor, subject?.item?.id ?? subject?.id), selected: new Set()};
+      state = {entries: markExistingDamage(availableOptions(entries(), actor, subject?.item?.id ?? subject?.id),app.config), selected: new Set()};
     }
     catch (error) { ui.notifications.error(error.message); return; }
     states.set(app, state);
@@ -97,10 +108,12 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
   const legend = document.createElement("legend");
   legend.textContent = "額外傷害（本次擲骰）";
   panel.append(legend);
+  const checkboxes = new Map();
   state.entries.forEach((entry, i) => {
     const row = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
+    checkboxes.set(i,input);
     input.checked = state.selected.has(i);
     input.disabled = Boolean(entry.disabledReason || entry.choicePending || (entry.requiresCritical && !app.config.isCritical));
     const label = document.createElement("span");
@@ -112,13 +125,17 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
       event.stopPropagation();
       if (input.checked && !input.disabled) state.selected.add(i);
       else state.selected.delete(i);
+      const group=conflictGroup(entry);
+      if(input.checked && group) state.entries.forEach((other,j)=>{
+        if(j!==i && conflictGroup(other)===group){state.selected.delete(j);if(checkboxes.has(j))checkboxes.get(j).checked=false;}
+      });
       syncTarget();
       replaceExtras(app.config, state.entries, state.selected);
       app.rebuild();
     });
     row.append(input, label);
     panel.append(row);
-    if (entry.note) {
+    if (entry.note || entry.disabledReason) {
       const note = document.createElement("small");
       note.textContent = entry.disabledReason || ((entry.requiresCritical && !app.config.isCritical) ? "僅重擊時可用。" : "") + entry.note;
       panel.append(note);
