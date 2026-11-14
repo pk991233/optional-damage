@@ -192,3 +192,55 @@ test("linked Flurry missing exhausted or unowned pools are disabled",()=>{
  f.items.get("pool").system.uses.spent=0;f.items.get("pool").isOwner=false;assert.ok(get().resourceError);
  feature.system.activities.a.consumption.targets[0].value="2";assert.match(get().resourceError,/消耗 1 次/);
 });
+
+test("dedicated named pools override stale consumption links without debiting old counters",async()=>{
+ for(const [key,ability,poolName,className] of [["psionic","Psionic Strike","Psionic Energy Die","Fighter"],["harm","Hand of Harm","Focus Point","Monk"]]) {
+  const abilityItem=feat("ability",ability,{max:8,spent:0});
+  abilityItem.system.activities={a:{id:"a",name:ability,consumption:{targets:[{type:"itemUses",target:"old",value:"2"}]}}};
+  const f=fixture([abilityItem,feat("pool",poolName,{max:4,spent:1}),feat("old",key==="harm"?"Monk's Focus":"Psionic Power",{max:8,spent:0}),cls("class",className,5,"d8")]);
+  const e=availableOptions(all,f.actor).find(e=>e.presetKey===key);
+  assert.equal(e.resourceRequests[0].itemId,"pool");assert.equal(e.resourceRequests[0].cost,1);assert.ok(!e.resourceError);
+  assert.ok(e.resourceText.includes(poolName));
+  replaceExtras(f.config,[e],new Set([0]));await consumptionWrapper(async()=>{})(f.config.rolls,f.config);
+  assert.equal(f.items.get("pool").system.uses.spent,2);assert.equal(f.items.get("old").system.uses.spent,0);assert.equal(abilityItem.system.uses.spent,0);
+ }
+});
+test("named activity pools debit their own activity instead of the parent feature",async()=>{
+ for(const [key,ability,poolName,className] of [["psionic","Psionic Strike","Psionic Energy Die","Fighter"],["harm","Hand of Harm","Focus Point","Monk"]]) {
+  const parent=feat("parent",key==="harm"?"Monk's Focus":"Psionic Power",{max:8,spent:0});
+  parent.system.activities={pool:{id:"pool",name:poolName,uses:{max:3,spent:0}}};
+  const f=fixture([feat("ability",ability),parent,cls("class",className,5,"d8")]);
+  const e=availableOptions(all,f.actor).find(e=>e.presetKey===key);
+  assert.equal(e.resourceRequests[0].path,"system.activities.pool.uses.spent");
+  replaceExtras(f.config,[e],new Set([0]));await consumptionWrapper(async()=>{})(f.config.rolls,f.config);
+  assert.equal(parent.system.activities.pool.uses.spent,1);assert.equal(parent.system.uses.spent,0);
+ }
+});
+test("exhausted missing-data unowned or duplicate primary pools never fall back",()=>{
+ const f=fixture([feat("ability","Hand of Harm",{max:8,spent:0}),feat("pool","Focus Point",{max:3,spent:3}),feat("old","Ki",{max:8,spent:0}),cls("class","Monk",5,"d8")]);
+ const get=()=>availableOptions(all,f.actor).find(e=>e.presetKey==="harm");
+ assert.ok(get().resourceError);assert.equal(get().resourceRequests[0].itemId,"pool");
+ f.items.get("pool").system.uses={max:3,spent:0};f.items.get("pool").isOwner=false;assert.ok(get().resourceError);
+ f.items.get("pool").isOwner=true;delete f.items.get("pool").system.uses;assert.ok(get().resourceError);
+ f.items.set("duplicate",feat("duplicate","Focus Point",{max:3,spent:0}));assert.match(get().resourceError,/多個/);
+});
+test("dedicated resource labels identifiers and plural aliases are recognized",async()=>{
+ for(const label of ["Focus Point","Focus Points"]) {
+  const f=fixture([feat("ability","Hand of Harm",{max:8,spent:0}),cls("class","Monk",5,"d8")]);
+  f.actor.system.resources={primary:{label,value:2,max:5}};
+  const e=availableOptions(all,f.actor).find(e=>e.presetKey==="harm");
+  replaceExtras(f.config,[e],new Set([0]));await consumptionWrapper(async()=>{})(f.config.rolls,f.config);
+  assert.equal(f.actor.system.resources.primary.value,1);assert.equal(f.items.get("ability").system.uses.spent,0);
+ }
+ const f=fixture([feat("ability","Psionic Strike"),feat("pool","自訂譯名",{max:3,spent:0}),cls("class","Fighter",5,"d10")]);
+ f.items.get("pool").system.identifier="psionic-energy-die";
+ assert.equal(availableOptions(all,f.actor).find(e=>e.presetKey==="psionic").resourceRequests[0].itemId,"pool");
+});
+test("Flurry alternate remains independent of Focus Point and rejects a linked Focus Point pool",()=>{
+ const flurry=feat("flurry","活殺自在",{max:3,spent:0});
+ const f=fixture([feat("ability","Hand of Harm"),feat("focus","Focus Point",{max:11,spent:0}),cls("class","Monk",11,"d8"),flurry]);
+ const list=()=>availableOptions(all,f.actor).filter(e=>["harm","harmFlurry"].includes(e.presetKey));
+ assert.equal(list()[0].resourceRequests[0].itemId,"focus");assert.equal(list()[1].resourceRequests[0].itemId,"flurry");
+ flurry.system.uses.max=0;flurry.system.activities={a:{id:"a",name:"Use",consumption:{targets:[{type:"itemUses",target:"focus",value:"1"}]}}};
+ assert.match(list()[1].resourceError,/不可連結氣/);
+});

@@ -30,9 +30,35 @@ function usesResource(item,activity,cost=1) {
 }
 const POOLS={
  psionic:["Psionic Energy Dice","Psionic Energy Die","Psionic Power","Psionic Energy","靈能骰","靈能能量骰","靈能力量","靈能之力"],
- harm:["Monk's Focus","monks-focus","Ki","Ki Points","Focus Points","氣","氣點","集中力","武僧專注","武僧集中力","武僧之氣"]
+ harm:["Monk's Focus","monks-focus","Ki","Ki Points","Focus Point","Focus Points","氣","氣點","集中力","武僧專注","武僧集中力","武僧之氣"]
 };
+// Dedicated resource entries outrank legacy parent counters and activity consumption links.
+const PRIMARY_POOLS={
+ psionic:["Psionic Energy Die","Psionic Energy Dice"],
+ harm:["Focus Point","Focus Points"]
+};
+function primaryResource(actor,key) {
+ const names=PRIMARY_POOLS[key];
+ if(!names)return null;
+ const items=resourceItems(actor).filter(i=>resourceMatches(i,names));
+ if(items.length>1)return {error:"找到多個 "+names[0]+" 資源，請保留唯一來源"};
+ if(items.length===1)return {requests:[usesResource(items[0])]};
+ const activities=resourceItems(actor).flatMap(item=>resourceActivities(item)
+  .filter(activity=>resourceMatches(activity,names)).map(activity=>({item,activity})));
+ if(activities.length>1)return {error:"找到多個 "+names[0]+" 活動資源，請保留唯一來源"};
+ if(activities.length===1)return {requests:[usesResource(activities[0].item,activities[0].activity)]};
+ const attributes=Object.entries(actor.system?.resources??{}).filter(([,r])=>resourceMatches({name:r.label},names));
+ if(attributes.length>1)return {error:"找到多個 "+names[0]+" 角色資源，請保留唯一來源"};
+ if(attributes.length===1) {
+  const [id,data]=attributes[0],path="system.resources."+id+".value",spent=path.replace(/\.value$/,".spent");
+  const isSpent=resourceRead(actor._source,spent)!==undefined&&resourceRead(actor._source,path)===undefined;
+  return {requests:[{path:isSpent?spent:path,direction:isSpent?1:-1,cost:1,label:data.label}]};
+ }
+ return null;
+}
 export function bindResource(actor,owned,key,activityNames) {
+ const primary=primaryResource(actor,key);
+ if(primary)return primary;
  const exact=owned.flatMap(item=>resourceActivities(item).filter(a=>resourceMatches(a,activityNames)).map(activity=>({item,activity})));
  if(exact.length>1)return {error:"找到多個對應活動，請保留唯一資源來源"};
  const selected=exact[0] ?? (owned.length===1?{item:owned[0]}:undefined);

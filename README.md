@@ -1,3 +1,14 @@
+# v0.9.3：修正靈能骰與氣的專用資源來源
+
+- 靈能打擊優先消耗 Psionic Energy Die／Psionic Energy Dice；普通奪命之手優先消耗 Focus Point／Focus Points，各消耗 1 次。
+- 搜尋優先序：同名物品（含名稱或 identifier）→ 同名活動的獨立次數 → 同名角色資源欄。專用來源優先於舊活動連結及 Psionic Power／Monk's Focus 等母特性計數。
+- 專用來源存在但已耗盡、未設定次數、沒有權限或有重複來源時停用，不會轉扣其他資源。未找到專用來源時保留原活動連動與舊版資源名稱相容性。
+- 活殺自在版本獨立消耗自己的資源，不扣 Focus Point，也拒絕將其外部連結指向 Focus Point。
+- 112 項 JavaScript 邏輯／模擬介面測試通過（V8 相容執行器），包含錯誤舊連結、同名活動、角色資源、耗盡與活殺自在隔離。
+- 尚未在使用者實際 FVTT／Midi-QOL 世界實測；目前使用者確認已實測的基準仍為 v0.8.1。
+
+---
+
 # v0.9.2：審查修正與共用規則整理
 
 驗證狀態：使用者已確認 v0.8.1 在世界測試；v0.9.0 起的版本尚未由使用者確認世界實測。以下為邏輯與模擬介面驗證，不等同 Foundry / Midi-QOL 整合實測。
@@ -178,9 +189,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.2.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.3.zip)
 
-已安裝者檢查更新至 0.9.2，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
+已安裝者檢查更新至 0.9.3，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 
 ## 預設
 
