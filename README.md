@@ -1,3 +1,14 @@
+# v0.9.4：支援 DND5e 5.0.0 起
+
+- 系統相容範圍從僅 5.3.3 擴充為 **5.0.0～5.3.3**；Foundry 仍為 v13。
+- 核對 5.0.0、5.1.0、5.2.0、5.3.3 的傷害視窗、擲骰及資源介面後，未發現本模組使用介面需要新增轉接，因此執行腳本保持 v0.9.3 原樣。
+- 112 項既有模擬測試及四組原始碼擲骰評估函式接合測試通過。
+- 舊版尚未世界實測，Midi-QOL 也須搭配適用於該系統版本的版本；不能把原始碼核對視為完整整合實測。
+- v0.9.3／DND5e 5.3.3 已由使用者世界測試一輪，暫未發現問題。
+- 詳細驗證範圍：[相容性說明](docs/compatibility.md)。
+
+---
+
 # v0.9.3：修正靈能骰與氣的專用資源來源
 
 - 靈能打擊優先消耗 Psionic Energy Die／Psionic Energy Dice；普通奪命之手優先消耗 Focus Point／Focus Points，各消耗 1 次。
@@ -189,9 +200,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.3.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.4.zip)
 
-已安裝者檢查更新至 0.9.3，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
+已安裝者檢查更新至 0.9.4，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 
 ## 預設
 
