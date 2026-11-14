@@ -311,5 +311,28 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
  if(/NaN|undefined/.test(e.formula)||e.choices?.some(c=>/NaN|undefined/.test(c.formula)))
   e.disabledReason="無法讀取所需的屬性調整值或熟練加值";
  if(owned.length>1)e.disabledReason="找到多個對應特性，請保留唯一對應項目";
+ if(key==="harm"&&level>=11) {
+  const flurryNames=["Flurry of Healing and Harm","flurry-of-healing-and-harm","活殺自在","活殺自在 Flurry of Healing and Harm"];
+  // The level-11 feature is evidence of the Mercy option even without a separate subclass item.
+  const flurries=Array.from(actor.items??[]).filter(i=>i.type==="feat"&&
+    (resourceMatches(i,flurryNames)||resourceActivities(i).some(a=>resourceMatches(a,flurryNames))));
+  if(flurries.length && !flurries.some(i=>i.id===sourceItemId)) {
+   const item=flurries[0],activities=resourceActivities(item).filter(a=>resourceMatches(a,flurryNames)&&a.uses?.max>0);
+   let binding;
+   if(flurries.length>1||activities.length>1)binding={error:"找到多個活殺自在資源，請保留唯一對應項目"};
+   else {
+    // Never use the normal Hand of Harm / Ki consumption targets for this variant.
+    const activity=activities[0];
+    binding={requests:[{itemId:item.id,
+     path:activity?"system.activities."+(activity.id??activity._id)+".uses.spent":"system.uses.spent",
+     cost:1,label:"活殺自在"}]};
+   }
+   const variant={...e,label:"奪命之手（活殺自在）",presetKey:"harmFlurry",
+    sourceItemId:item.id,consumes:false,resourceRequests:[],resourceError:"",resourceText:"",
+    note:"僅符合疾風連擊的奪命之手觸發時使用；不扣氣／集中力，消耗活殺自在 1 次。與普通奪命之手互斥。"};
+   applyResourceBinding(variant,actor,binding);
+   return [e,variant];
+  }
+ }
  return [e];
 }

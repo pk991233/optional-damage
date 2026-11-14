@@ -122,3 +122,43 @@ test("unsupported consumption targets fail closed rather than charging a guessed
  const f=fixture([harm,feat("focus","Ki",{max:5,spent:0})]);
  assert.match(bindResource(f.actor,[harm],"harm",["Hand of Harm"]).error,/不支援/);
 });
+
+test("Mercy alternate harm requires monk 11 and Flurry of Healing and Harm",()=>{
+ const f=fixture([feat("harm","Hand of Harm"),feat("ki","Ki",{max:11,spent:0}),cls("monk","Monk",10,"d8"),feat("flurry","活殺自在 Flurry of Healing and Harm",{max:3,spent:0})]);
+ const list=()=>availableOptions(all,f.actor).filter(e=>["harm","harmFlurry"].includes(e.presetKey));
+ assert.equal(list().length,1);f.items.get("monk").system.levels=11;
+ assert.equal(list().length,2);assert.equal(list()[1].formula,list()[0].formula);
+ assert.equal(availableOptions(all,f.actor,"flurry").some(e=>e.presetKey==="harmFlurry"),false);
+ f.items.delete("flurry");assert.equal(list().length,1);
+});
+test("alternate harm spends one Flurry use and no Ki even on critical/re-evaluation",async()=>{
+ const f=fixture([feat("harm","Hand of Harm"),feat("ki","Ki",{max:11,spent:11}),cls("monk","Monk",11,"d8"),feat("flurry","Flurry of Healing and Harm",{max:3,spent:0})]);
+ const es=availableOptions(all,f.actor).filter(e=>["harm","harmFlurry"].includes(e.presetKey));
+ assert.ok(es[0].resourceError);assert.ok(!es[1].resourceError);
+ f.config.isCritical=true;replaceExtras(f.config,es,new Set([1]));
+ const fn=consumptionWrapper(async()=>{});await fn(f.config.rolls,f.config);await fn(f.config.rolls,f.config);
+ assert.equal(f.items.get("ki").system.uses.spent,11);assert.equal(f.items.get("flurry").system.uses.spent,1);
+});
+test("harm variants cannot both enter one damage roll and normal harm only consumes Ki",async()=>{
+ const f=fixture([feat("harm","Hand of Harm"),feat("ki","Ki",{max:11,spent:0}),cls("monk","Monk",11,"d8"),feat("flurry","活殺自在",{max:3,spent:0})]);
+ const es=availableOptions(all,f.actor).filter(e=>["harm","harmFlurry"].includes(e.presetKey));
+ replaceExtras(f.config,es,new Set([0,1]));assert.equal(f.config.rolls.length,2);
+ await consumptionWrapper(async()=>{})(f.config.rolls,f.config);
+ assert.equal(f.items.get("ki").system.uses.spent,1);assert.equal(f.items.get("flurry").system.uses.spent,0);
+});
+test("exhausted, missing, duplicate and unowned Flurry resources disable alternate harm",()=>{
+ const f=fixture([feat("harm","Hand of Harm"),feat("ki","Ki",{max:11,spent:0}),cls("monk","Monk",11,"d8"),feat("flurry","活殺自在",{max:3,spent:3})]);
+ const get=()=>availableOptions(all,f.actor).find(e=>e.presetKey==="harmFlurry");
+ assert.ok(get().resourceError);
+ f.items.get("flurry").system.uses={max:3,spent:0};f.items.get("flurry").isOwner=false;assert.ok(get().resourceError);
+ f.items.get("flurry").isOwner=true;delete f.items.get("flurry").system.uses;assert.ok(get().resourceError);
+ f.items.set("copy",feat("copy","Flurry of Healing and Harm",{max:3,spent:0}));assert.match(get().resourceError,/多個/);
+});
+test("activity-based Flurry uses consume the matching activity, never its Ki target",async()=>{
+ const flurry=feat("flurry","活殺自在");
+ flurry.system.activities={a:{id:"a",name:"Flurry of Healing and Harm",uses:{max:3,spent:0},consumption:{targets:[{type:"itemUses",target:"ki",value:"1"}]}}};
+ const f=fixture([feat("harm","Hand of Harm"),feat("ki","Ki",{max:11,spent:0}),cls("monk","Monk",11,"d8"),flurry]);
+ const e=availableOptions(all,f.actor).find(e=>e.presetKey==="harmFlurry");
+ replaceExtras(f.config,[e],new Set([0]));await consumptionWrapper(async()=>{})(f.config.rolls,f.config);
+ assert.equal(flurry.system.activities.a.uses.spent,1);assert.equal(f.items.get("ki").system.uses.spent,0);
+});

@@ -98,3 +98,39 @@ test('hit dice UI shows remaining dice, disables unaffordable choices and shares
  selects[1].value='1';selects[1].change();assert.equal(checks[1].disabled,true);
  assert.equal(app.config.rolls.length,1);
 });
+test('harm variants switch both directions and carry distinct resource requests',async()=>{
+ const hooks={};
+ globalThis.Hooks={once(){},on(name,fn){hooks[name]=fn;}};
+ class Element {
+  constructor(tag){this.tag=tag;this.children=[];this.events={};}
+  append(...nodes){this.children.push(...nodes);}
+  setAttribute(){}
+  addEventListener(event,fn){this.events[event]=fn;}
+  querySelector(s){return s.includes('data-application-part')?this:null;}
+  change(){this.events.change({stopPropagation(){}});}
+ }
+ globalThis.HTMLElement=Element;
+ globalThis.document={createElement:tag=>new Element(tag),createTextNode:text=>({text})};
+ globalThis.CONFIG={DND5E:{damageTypes:{radiant:{label:'Radiant'},necrotic:{label:'Necrotic'}},healingTypes:{}}};
+ globalThis.game={settings:{get:()=> '奪命之手 | preset:harm | necrotic | Hand of Harm'},i18n:{localize:x=>x}};
+ globalThis.Roll={validate:()=>true};
+ globalThis.ui={notifications:{error:m=>{throw Error(m);}}};
+ await import('../scripts/main.mjs?harm-flurry');
+ const actor={items:[
+ {id:"harm",type:"feat",name:"Hand of Harm"},
+ {id:"ki",isOwner:true,type:"feat",name:"Ki",system:{uses:{max:11,spent:0}}},
+ {id:"flurry",isOwner:true,type:"feat",name:"Flurry of Healing and Harm",system:{uses:{max:3,spent:0}}},
+ {type:"class",name:"Monk",system:{levels:11}}],system:{abilities:{wis:{mod:3}}}};
+ const app={config:{subject:{actor},rolls:[{parts:['1d8'],options:{type:'slashing'}}]},rebuild(){},setPosition(){}};
+ const root=new Element('root');hooks.renderDamageRollConfigurationDialog(app,root);
+ const checks=root.children[0].children.filter(e=>e.tag==='label').map(e=>e.children[0]);
+ assert.equal(checks.length,2);assert.ok(checks.every(c=>!c.disabled));
+ checks[0].checked=true;checks[0].change();
+ checks[1].checked=true;checks[1].change();
+ assert.equal(checks[0].checked,false);assert.equal(checks[0].disabled,false);
+ assert.equal(app.config.rolls[1].options.optionalDamageResources[0].itemId,"flurry");
+ checks[0].checked=true;checks[0].change();
+ assert.equal(checks[1].checked,false);assert.equal(checks[1].disabled,false);
+ assert.equal(app.config.rolls[1].options.optionalDamageResources[0].itemId,"ki");assert.equal(app.config.rolls.length,2);
+});
+

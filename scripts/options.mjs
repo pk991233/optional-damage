@@ -205,7 +205,7 @@ export function replaceExtras(config, entries, selected) {
   const selectedKeys = new Set();
   const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.resourceError && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).filter(entry => {
     const kind=entry.presetKey ?? entry.presetId;
-    const group=["divineStrike","clericPotent"].includes(kind) ? "cleric-blessed" : ["primal","druidPotent"].includes(kind) ? "druid-fury" : undefined;
+    const group=["harm","harmFlurry"].includes(kind) ? "monk-harm" : ["divineStrike","clericPotent"].includes(kind) ? "cleric-blessed" : ["primal","druidPotent"].includes(kind) ? "druid-fury" : undefined;
     const key=group ?? entry.presetId ?? JSON.stringify([entry.aliases?.map(normalizeName).sort(),entry.formula.replace(/\s/g,""),entry.type]);
     if(selectedKeys.has(key))return false;
     selectedKeys.add(key);return true;

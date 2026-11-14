@@ -1,3 +1,15 @@
+# v0.9.1：奪命之手的活殺自在版本
+
+- 武僧等級達 11 級，並持有 Flurry of Healing and Harm／活殺自在（含中英並列名稱）的特性或同名活動時，額外顯示「奪命之手（活殺自在）」。
+- 此選項沿用奪命之手傷害，不扣氣／集中力，改扣活殺自在 1 次。可讀取同名活動的獨立 uses 或特性本身的 uses；不會借用普通奪命之手的氣消耗目標。
+- 普通版本與活殺自在版本互斥，可雙向切換；即使程式同時勾選也只加入一份傷害。
+- 顯示活殺自在剩餘次數；耗盡、缺少資源設定、重複來源或沒有修改權限時停用。氣耗盡不會阻止有剩餘次數的活殺自在版本。
+- 新選項由原本奪命之手預設衍生，不新增設定列；停用原預設會一起停用。持有 11 級子職特性作為辨識依據，不要求額外的子職物品。
+- 玩家仍須確認是符合疾風連擊的觸發；每回合限制不自動追蹤。若已在原活動扣過活殺自在，請勿再用此選項重複扣除。
+- 100 項 JavaScript 邏輯／模擬介面測試通過（V8 相容執行器）；尚未在實際 FVTT／Midi-QOL 世界實測。
+
+---
+
 # v0.9.0：靈能骰、氣與生命骰自動消耗
 
 - 辨識「暴徒 Thug」及其「刺殺 Assassination」活動。若刺殺活動設定了使用次數或固定消耗，會連動扣除該活動資源；不會扣到消失活動。
@@ -139,9 +151,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.0.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.1.zip)
 
-已安裝者檢查更新至 0.9.0，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
+已安裝者檢查更新至 0.9.1，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 
 ## 預設
 

@@ -61,6 +61,7 @@ export function auditCustom(text) {
 }
 export function conflictGroup(entry) {
  const key=entry.presetKey??entry.presetId??(entry.formula?.startsWith("preset:")?entry.formula.slice(7):"");
+ if(["harm","harmFlurry"].includes(key))return "monk-harm";
  if(["divineStrike","clericPotent"].includes(key))return "cleric-blessed";
  if(["primal","druidPotent"].includes(key))return "druid-fury";
  return entry.presetId ? "preset:"+entry.presetId : "";
