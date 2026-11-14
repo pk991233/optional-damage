@@ -1,4 +1,5 @@
-import {resourceActivities, resourceMatches, bindResource, hitDicePools, hitDiceRequests, applyResourceBinding} from "./resources.mjs";
+import {objectMatchesAbility} from "./rules.mjs";
+import {resourceActivities, resourceMatches, bindResource, bindFlurryResource, hitDicePools, hitDiceRequests, applyResourceBinding} from "./resources.mjs";
 // Opt-in damage presets. Conditions and manual costs are displayed to the player.
 export const EXTRA_PRESETS = [
   [
@@ -189,10 +190,9 @@ const CLASSES = {
  druid:["druid","德魯伊"], artificer:["artificer","奇械師"], warlock:["warlock","契術師"],
  sorcerer:["sorcerer","術士"], wizard:["wizard","法師"], bard:["bard","吟遊詩人"]
 };
-const norm = s => String(s??"").normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu,"");
 export function classLevel(actor,key) {
  const cls=Array.from(actor.items??[]).find(i=>i.type==="class" &&
-  CLASSES[key]?.some(n=>[i.name,i.system?.identifier].some(v=>norm(v)===norm(n))));
+  objectMatchesAbility(i,CLASSES[key]??[]));
  const n=Number(cls?.system?.levels);
  return Number.isInteger(n)&&n>0&&n<=20?n:0;
 }
@@ -317,16 +317,9 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
   const flurries=Array.from(actor.items??[]).filter(i=>i.type==="feat"&&
     (resourceMatches(i,flurryNames)||resourceActivities(i).some(a=>resourceMatches(a,flurryNames))));
   if(flurries.length && !flurries.some(i=>i.id===sourceItemId)) {
-   const item=flurries[0],activities=resourceActivities(item).filter(a=>resourceMatches(a,flurryNames)&&a.uses?.max>0);
-   let binding;
-   if(flurries.length>1||activities.length>1)binding={error:"找到多個活殺自在資源，請保留唯一對應項目"};
-   else {
-    // Never use the normal Hand of Harm / Ki consumption targets for this variant.
-    const activity=activities[0];
-    binding={requests:[{itemId:item.id,
-     path:activity?"system.activities."+(activity.id??activity._id)+".uses.spent":"system.uses.spent",
-     cost:1,label:"活殺自在"}]};
-   }
+   const item=flurries[0];
+   const binding=flurries.length>1?{error:"找到多個活殺自在資源，請保留唯一對應項目"}:
+    bindFlurryResource(actor,item,flurryNames);
    const variant={...e,label:"奪命之手（活殺自在）",presetKey:"harmFlurry",
     sourceItemId:item.id,consumes:false,resourceRequests:[],resourceError:"",resourceText:"",
     note:"僅符合疾風連擊的奪命之手觸發時使用；不扣氣／集中力，消耗活殺自在 1 次。與普通奪命之手互斥。"};

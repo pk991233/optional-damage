@@ -1,14 +1,11 @@
+import {objectMatchesAbility} from "./rules.mjs";
 // DnD5e 5.3.3: class hd.spent, item uses.spent and embedded activity uses.spent.
 export const resourceItems = actor => Array.from(actor?.items?.values?.() ?? actor?.items ?? []);
 export const resourceActivities = item => Array.from(item?.system?.activities?.values?.() ?? Object.values(item?.system?.activities ?? {}));
 export function resourceRead(object,path) {
  return path.split(".").reduce((v,k)=>v?.[k] ?? v?.get?.(k),object);
 }
-const resourceNorm = s => String(s??"").normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu,"");
-export function resourceMatches(object,names) {
- return [object?.name,object?.identifier,object?.system?.identifier].some(v=>
-  [v,...String(v??"").split(/[()（）]/)].some(s=>names.some(n=>resourceNorm(s)===resourceNorm(n))) );
-}
+export const resourceMatches = objectMatchesAbility;
 export function resourceStatus(actor,r) {
  const item=r.itemId?resourceItems(actor).find(i=>i.id===r.itemId):undefined;
  const doc=r.itemId?item:actor;
@@ -29,7 +26,7 @@ export function resourceStatus(actor,r) {
 }
 function usesResource(item,activity,cost=1) {
  return {itemId:item.id,path:activity?"system.activities."+(activity.id??activity._id)+".uses.spent":"system.uses.spent",
-  cost,label:activity?.name??item.name};
+  cost,label:activity?item.name+" → "+activity.name:item.name};
 }
 const POOLS={
  psionic:["Psionic Energy Dice","Psionic Energy Die","Psionic Power","Psionic Energy","靈能骰","靈能能量骰","靈能力量","靈能之力"],
@@ -136,9 +133,10 @@ export function resourceDescription(actor,requests) {
  return requests.map(r=>{
   if(r.kind==="hitDice") {
    const pools=hitDicePools(actor).filter(p=>p.denomination===r.denomination);
-   return r.denomination+" 剩餘 "+pools.reduce((n,p)=>n+p.remaining,0)+"/"+pools.reduce((n,p)=>n+(p.valid?p.maximum:0),0)+"，消耗 "+r.cost+" 顆";
+   return r.denomination+" 剩餘 "+pools.reduce((n,p)=>n+p.remaining,0)+"/"+pools.reduce((n,p)=>n+(p.valid?p.maximum:0),0)+"，消耗 "+r.cost+" 顆；來源："+(pools.map(p=>p.item.name).join("、")||"未找到對應職業");
   }
-  const s=resourceStatus(actor,r);return (r.label??"資源")+" 剩餘 "+s.remaining+"/"+s.maximum+"，消耗 "+r.cost;
+  const s=resourceStatus(actor,r);const storage=r.path?.startsWith("system.activities.")?"活動次數":r.path?.startsWith("system.resources.")?"角色資源":"特性次數";
+  return "來源："+(r.label??"資源")+" → "+storage+"；剩餘 "+s.remaining+"/"+s.maximum+"，消耗 "+r.cost;
  }).join("；");
 }
 export function applyResourceBinding(entry,actor,binding) {
@@ -147,4 +145,28 @@ export function applyResourceBinding(entry,actor,binding) {
  if(binding.error)entry.resourceError=binding.error;
  else try{resourcePlan(actor,entry.resourceRequests);}catch(error){entry.resourceError=error.message;}
  return entry;
+}
+
+/** Resolve the alternative Harm cost without ever borrowing the normal Ki pool. */
+export function bindFlurryResource(actor,item,names) {
+ const activities=resourceActivities(item);
+ const own=activities.filter(a=>resourceMatches(a,names)&&a.uses?.max>0);
+ if(own.length>1)return {error:"找到多個活殺自在活動資源，請指定唯一來源"};
+ if(own.length===1)return {requests:[usesResource(item,own[0])]};
+ if(item.system?.uses?.max>0)return {requests:[usesResource(item)]};
+ const named=activities.filter(a=>resourceMatches(a,names)&&a.consumption?.targets?.length);
+ const linked=named.length?named:activities.filter(a=>a.consumption?.targets?.length);
+ if(linked.length>1)return {error:"找到多個活殺自在消耗活動，無法確定來源"};
+ if(!linked.length)return {requests:[usesResource(item)]};
+ const activity=linked[0];
+ if((activity.consumption.targets??[]).some(t=>!["itemUses","activityUses"].includes(t.type)))
+  return {error:"活殺自在僅支援特性／活動次數，不會改扣氣或其他屬性"};
+ const binding=bindResource(actor,[item],"flurry",[activity.name]);
+ if(binding.error)return binding;
+ if(binding.requests.length!==1||binding.requests[0].cost!==1)
+  return {error:"活殺自在須連結一項資源並消耗 1 次"};
+ const request=binding.requests[0],pool=resourceItems(actor).find(i=>i.id===request.itemId);
+ if(!pool||resourceMatches(pool,POOLS.harm))
+  return {error:"活殺自在不可連結氣／集中力，請設定獨立次數"};
+ return binding;
 }

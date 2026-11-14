@@ -162,3 +162,33 @@ test("activity-based Flurry uses consume the matching activity, never its Ki tar
  replaceExtras(f.config,[e],new Set([0]));await consumptionWrapper(async()=>{})(f.config.rolls,f.config);
  assert.equal(flurry.system.activities.a.uses.spent,1);assert.equal(f.items.get("ki").system.uses.spent,0);
 });
+
+test("Flurry follows a unique linked item pool and shows its source",async()=>{
+ const feature=feat("flurry","Flurry of Healing and Harm",{max:0,spent:0});
+ feature.system.activities={a:{id:"a",name:"Use",consumption:{targets:[{type:"itemUses",target:"pool",value:"1"}]}}};
+ const f=fixture([feat("harm","Hand of Harm"),feat("ki","Ki",{max:11,spent:0}),cls("monk","Monk",11,"d8"),feature,feat("pool","Flurry Pool",{max:3,spent:0})]);
+ const e=availableOptions(all,f.actor).find(e=>e.presetKey==="harmFlurry");
+ assert.ok(!e.resourceError);assert.equal(e.resourceRequests[0].itemId,"pool");
+ assert.match(e.resourceText,/來源：Flurry Pool → 特性次數/);
+ replaceExtras(f.config,[e],new Set([0]));await consumptionWrapper(async()=>{})(f.config.rolls,f.config);
+ assert.equal(f.items.get("pool").system.uses.spent,1);assert.equal(f.items.get("ki").system.uses.spent,0);
+});
+test("linked Flurry cannot substitute Ki or ambiguous consumption activities",()=>{
+ const feature=feat("flurry","活殺自在",{max:0,spent:0});
+ feature.system.activities={a:{id:"a",name:"Use",consumption:{targets:[{type:"itemUses",target:"ki",value:"1"}]}}};
+ const f=fixture([feat("harm","Hand of Harm"),feat("ki","Ki",{max:11,spent:0}),cls("monk","Monk",11,"d8"),feature]);
+ const get=()=>availableOptions(all,f.actor).find(e=>e.presetKey==="harmFlurry");
+ assert.match(get().resourceError,/不可連結氣/);
+ feature.system.activities.b={id:"b",name:"Other",consumption:{targets:[{type:"itemUses",target:"ki",value:"1"}]}};
+ assert.match(get().resourceError,/多個/);
+});
+test("linked Flurry missing exhausted or unowned pools are disabled",()=>{
+ const feature=feat("flurry","活殺自在");
+ feature.system.activities={a:{id:"a",name:"Use",consumption:{targets:[{type:"itemUses",target:"pool",value:"1"}]}}};
+ const f=fixture([feat("harm","Hand of Harm"),cls("monk","Monk",11,"d8"),feature]);
+ const get=()=>availableOptions(all,f.actor).find(e=>e.presetKey==="harmFlurry");
+ assert.ok(get().resourceError);
+ f.items.set("pool",feat("pool","Flurry Pool",{max:3,spent:3}));assert.ok(get().resourceError);
+ f.items.get("pool").system.uses.spent=0;f.items.get("pool").isOwner=false;assert.ok(get().resourceError);
+ feature.system.activities.a.consumption.targets[0].value="2";assert.match(get().resourceError,/消耗 1 次/);
+});

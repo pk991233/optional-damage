@@ -1,3 +1,4 @@
+import {normalizedAbilityName, abilityMatches, damageConflictGroup} from "./rules.mjs";
 import {resourceActivities, resourceMatches} from "./resources.mjs";
 import {EXTRA_PRESETS, EXTRA_KEYS, resolveExtra} from "./presets.mjs";
 import {spellSlots, smiteFormula} from "./smite.mjs";
@@ -34,13 +35,8 @@ export function useStatus(item) {
   else if (remaining < 1) reason = "使用次數不足";
   return {remaining, maximum, reason};
 }
-export function normalizeName(value) {
-  return String(value ?? "").normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
-}
-function matches(name, aliases) {
-  const parts = [name, ...String(name ?? "").split(/[()（）\[\]【】/]/u)];
-  return parts.some(part => normalizeName(part) && aliases.some(alias => normalizeName(part) === normalizeName(alias)));
-}
+export const normalizeName = normalizedAbilityName;
+const matches = abilityMatches;
 export function parseOptions(text, types, validate) {
   return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map((line, index) => {
     const fields = line.split("|").map(s => s.trim());
@@ -204,9 +200,8 @@ export function replaceExtras(config, entries, selected) {
   const properties = base[0]?.options?.properties;
   const selectedKeys = new Set();
   const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.resourceError && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).filter(entry => {
-    const kind=entry.presetKey ?? entry.presetId;
-    const group=["harm","harmFlurry"].includes(kind) ? "monk-harm" : ["divineStrike","clericPotent"].includes(kind) ? "cleric-blessed" : ["primal","druidPotent"].includes(kind) ? "druid-fury" : undefined;
-    const key=group ?? entry.presetId ?? JSON.stringify([entry.aliases?.map(normalizeName).sort(),entry.formula.replace(/\s/g,""),entry.type]);
+    const group=damageConflictGroup(entry);
+    const key=group || entry.presetId || JSON.stringify([entry.aliases?.map(normalizeName).sort(),entry.formula.replace(/\s/g,""),entry.type]);
     if(selectedKeys.has(key))return false;
     selectedKeys.add(key);return true;
   }).map(entry => {

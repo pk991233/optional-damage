@@ -134,3 +134,38 @@ test('harm variants switch both directions and carry distinct resource requests'
  assert.equal(app.config.rolls[1].options.optionalDamageResources[0].itemId,"ki");assert.equal(app.config.rolls.length,2);
 });
 
+test('resource change on rerender clears the checkbox and actual extra roll together',async()=>{
+ const hooks={};
+ globalThis.Hooks={once(){},on(name,fn){hooks[name]=fn;}};
+ class Element {
+  constructor(tag){this.tag=tag;this.children=[];this.events={};}
+  append(...nodes){this.children.push(...nodes);}
+  setAttribute(){}
+  addEventListener(event,fn){this.events[event]=fn;}
+  querySelector(s){return s.includes('data-application-part')?this:null;}
+  change(){this.events.change({stopPropagation(){}});}
+ }
+ globalThis.HTMLElement=Element;
+ globalThis.document={createElement:tag=>new Element(tag),createTextNode:text=>({text})};
+ globalThis.CONFIG={DND5E:{damageTypes:{radiant:{label:'Radiant'}},healingTypes:{}}};
+ globalThis.game={settings:{get:()=> '魔焰專家 | preset:spellfire | radiant | Spellfire Adept\n塑能增幅 | preset:fueled | inherit | Fueled Evocation'},i18n:{localize:x=>x}};
+ globalThis.Roll={validate:()=>true};
+ globalThis.ui={notifications:{error:m=>{throw Error(m);}}};
+ await import('../scripts/main.mjs?hit-dice');
+ const actor={isOwner:true,items:[
+  {id:'s',type:'feat',name:'Spellfire Adept'},{id:'f',type:'feat',name:'Fueled Evocation'},
+  {id:'spell',type:'spell',system:{level:1}},
+  {id:'c',isOwner:true,type:'class',name:'Wizard',system:{levels:1,hd:{denomination:"d6",max:1,spent:0}}}
+ ]};
+ const app={config:{subject:{actor,item:{id:'spell'}},rolls:[{parts:['1d8'],options:{type:'radiant'}}]},rebuild(){},setPosition(){}};
+ const root=new Element('root');hooks.renderDamageRollConfigurationDialog(app,root);
+ const panel=root.children[0],checks=panel.children.filter(e=>e.tag==='label').map(e=>e.children[0]),selects=panel.children.filter(e=>e.tag==='select');
+
+ selects[0].value='0';selects[0].change();checks[0].checked=true;checks[0].change();
+ assert.equal(app.config.rolls.length,2);
+ actor.items.find(i=>i.id==="c").system.hd.spent=1;
+ const root2=new Element("root");hooks.renderDamageRollConfigurationDialog(app,root2);
+ const after=root2.children[0].children.filter(e=>e.tag==="label").map(e=>e.children[0]);
+ assert.equal(after[0].checked,false);assert.equal(after[0].disabled,true);
+ assert.equal(app.config.rolls.length,1);
+});

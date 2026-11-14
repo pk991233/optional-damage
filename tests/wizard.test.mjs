@@ -20,3 +20,16 @@ test("wizard supports back, confirmation and cancel without saving",async()=>{
  globalThis.Dialog=class {constructor(data){this.data=data;}render(){this.data.close();}};
  assert.equal(await quickAdd({fire:{label:"Fire"}}),null);
 });
+
+test("invalid later field cannot trap wizard after going back",async()=>{
+ const errors=[],titles=[];
+ globalThis.game={i18n:{localize:x=>x}};
+ globalThis.ui={notifications:{error:m=>errors.push(m)}};
+ const queue=[["next","Flame"],["next","0"],["back","0"],["next","New Flame"],["next","2"],["next","6"],["next","0"],["next","fire"],["next","Flame"]];
+ globalThis.Dialog=class {constructor(data){this.data=data;}render(){
+  titles.push(this.data.title);const next=queue.shift();if(!next)throw Error("wizard stuck");
+  const [button,value]=next;this.data.buttons[button].callback([{querySelector:()=>({value})}]);this.data.close();
+ }};
+ assert.equal(await quickAdd({fire:{label:"Fire"}}),"New Flame | 2d6 | fire | Flame");
+ assert.equal(errors.length,1);assert.equal(queue.length,0);
+});

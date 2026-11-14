@@ -1,3 +1,4 @@
+import {damageConflictGroup} from "./rules.mjs";
 import {PRESETS, parseOptions, normalizeName} from "./options.mjs";
 export const presetId = p => p[1].startsWith("preset:") ? p[1].slice(7) : normalizeName(p[0]);
 const parts = line => line.split("|").map(s=>s.trim());
@@ -59,13 +60,7 @@ export function auditCustom(text) {
  }
  return [...new Set(warnings)];
 }
-export function conflictGroup(entry) {
- const key=entry.presetKey??entry.presetId??(entry.formula?.startsWith("preset:")?entry.formula.slice(7):"");
- if(["harm","harmFlurry"].includes(key))return "monk-harm";
- if(["divineStrike","clericPotent"].includes(key))return "cleric-blessed";
- if(["primal","druidPotent"].includes(key))return "druid-fury";
- return entry.presetId ? "preset:"+entry.presetId : "";
-}
+export const conflictGroup = damageConflictGroup;
 export function markExistingDamage(entries,config) {
  const base=(config.rolls??[]).filter(r=>!r.options?.["optional-damage"]);
  return entries.map(e=>{

@@ -40,8 +40,11 @@ export async function quickAdd(types) {
   data[step.key]=answer.value;
   if(answer.back){index--;continue;}
   try {
-   // Validate the current answer without requiring later steps.
-   customRow({...data,label:index===0?data.label:(data.label||"附傷")},types);
+   // Validate only this step; returning to an earlier step must not trap invalid later data.
+   const candidate={label:"附傷",count:1,faces:6,bonus:0,type:"inherit",aliases:""};
+   candidate[step.key]=data[step.key];
+   customRow(candidate,types);
+   if(index===steps.length-1)customRow(data,types);
    index++;
   }catch(error){ui.notifications.error(error.message);}
  }

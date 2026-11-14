@@ -1,4 +1,4 @@
-import {resourcePlan, resourceDescription} from "./resources.mjs";
+import {resourcePlan, resourceDescription, resourceItems} from "./resources.mjs";
 import {quickAdd} from "./wizard.mjs";
 import {presetId, settingsData, splitLegacy, combinedEntries, auditCustom, conflictGroup, markExistingDamage} from "./settings.mjs";
 import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from "./options.mjs";
@@ -152,6 +152,11 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
   const checkboxes = new Map();
   const resourceRefreshers=[];
   const refreshResources=()=>resourceRefreshers.forEach(fn=>fn());
+  const updateDamage=(rebuild=true)=>{
+    refreshResources();
+    replaceExtras(app.config,state.entries,state.selected);
+    if(rebuild)app.rebuild();
+  };
   state.entries.forEach((entry, i) => {
     const row = document.createElement("label");
     const input = document.createElement("input");
@@ -162,8 +167,11 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     const label = document.createElement("span");
     let syncTarget = () => {};
     label.textContent = `${entry.label}：+ ${entry.formula} ${entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
-    if (entry.consumes) label.textContent += entry.disabledReason
-      ? `（${entry.disabledReason}）` : `（剩餘 ${entry.remaining}/${entry.maximum}，消耗 1 次）`;
+    if (entry.consumes) {
+      const sourceName=resourceItems(state.actor).find(item=>item.id===entry.sourceItemId)?.name??"對應特性";
+      label.textContent += entry.disabledReason ? `（${entry.disabledReason}）` :
+        `（來源：${sourceName} → 特性次數；剩餘 ${entry.remaining}/${entry.maximum}，消耗 1 次）`;
+    }
     input.addEventListener("change", event => {
       event.stopPropagation();
       if (input.checked && !input.disabled) state.selected.add(i);
@@ -173,9 +181,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
         if(j!==i && conflictGroup(other)===group){state.selected.delete(j);if(checkboxes.has(j))checkboxes.get(j).checked=false;}
       });
       syncTarget();
-      refreshResources();
-      replaceExtras(app.config, state.entries, state.selected);
-      app.rebuild();
+      updateDamage();
     });
     row.append(input, label);
     panel.append(row);
@@ -212,9 +218,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
         if (input.disabled) { input.checked = false; state.selected.delete(i); }
         label.textContent = entry.label + "：+ " + entry.formula + " " +
           (entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label));
-        refreshResources();
-        replaceExtras(app.config, state.entries, state.selected);
-        app.rebuild();
+        updateDamage();
       });
       panel.append(select);
     }
@@ -258,8 +262,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
         if (!entry.slotKey) return;
         entry.formula = smiteFormula(entry);
         label.textContent = `${entry.label}：+ ${entry.formula} ${game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
-        replaceExtras(app.config, state.entries, state.selected);
-        app.rebuild();
+        updateDamage();
       };
       select.addEventListener("change", event => {entry.slotKey = select.value; refresh(event);});
       controls.append(select);
@@ -291,7 +294,9 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
       panel.append(controls);
     }
   });
-  refreshResources();
+  const selectionBeforeRefresh=[...state.selected].join(",");
+  updateDamage(false);
+  const selectionChanged=selectionBeforeRefresh!==[...state.selected].join(",");
   const hint = document.createElement("small");
   hint.textContent = "請自行確認觸發條件；已由其他效果加入的傷害，請勿重複勾選。";
   panel.append(hint);
@@ -303,4 +308,5 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     form.append(panel);
   }
   app.setPosition({height: "auto"});
+  if(selectionChanged)app.rebuild();
 });
