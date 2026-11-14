@@ -1,10 +1,11 @@
+import {resourceActivities, resourceMatches, bindResource, hitDicePools, hitDiceRequests, applyResourceBinding} from "./resources.mjs";
 // Opt-in damage presets. Conditions and manual costs are displayed to the player.
 export const EXTRA_PRESETS = [
   [
     "暴徒：刺殺",
     "preset:thug",
     "inherit",
-    "刺殺;Assassination;Thug;暴徒"
+    "刺殺;Assassination;Thug;暴徒;暴徒 Thug;刺殺 Assassination"
   ],
   [
     "刺客：暗殺",
@@ -139,18 +140,6 @@ export const EXTRA_PRESETS = [
     "強效塑能;Empowered Evocation"
   ],
   [
-    "戰鬥激勵",
-    "preset:inspiration",
-    "inherit",
-    "戰鬥激勵;Combat Inspiration"
-  ],
-  [
-    "強化通靈",
-    "preset:channeling",
-    "inherit",
-    "強化通靈;Empowered Channeling"
-  ],
-  [
     "天界顯化",
     "preset:celestial",
     "radiant",
@@ -193,7 +182,7 @@ export const EXTRA_PRESETS = [
     "冰霜之指;Fingers of Frost"
   ]
 ];
-export const EXTRA_KEYS = new Set([...EXTRA_PRESETS.map(p=>p[1]),"preset:radiant"]);
+export const EXTRA_KEYS = new Set([...EXTRA_PRESETS.map(p=>p[1]),"preset:radiant","preset:inspiration","preset:channeling"]);
 const CLASSES = {
  rogue:["rogue","遊蕩者","盜賊"], barbarian:["barbarian","野蠻人"], fighter:["fighter","戰士"],
  paladin:["paladin","聖騎士"], monk:["monk","武僧"], cleric:["cleric","牧師"],
@@ -213,9 +202,9 @@ const RULES = {
  brutal:["barbarian",9,"使用魯莽攻擊、放棄此次優勢且沒有劣勢；每個自己的回合一次。"],
  frenzy:["barbarian",3,"狂暴且使用魯莽攻擊；自己回合首次以力量攻擊命中。"],
  fury:["barbarian",3,"狂暴時，自己回合首次武器或徒手命中。"],
- psionic:["fighter",3,"武器命中30尺內目標；自己回合一次。需手動消耗1顆靈能骰。"],
+ psionic:["fighter",3,"武器命中30尺內目標；自己回合一次。自動消耗1顆靈能骰。"],
  radiant:["paladin",11,"近戰武器或徒手命中；若角色卡已加入此傷害，請勿重複勾選。"],
- harm:["monk",3,"徒手命中，每回合一次；手動消耗1點集中力，或確認疾風連擊的免費次數。"],
+ harm:["monk",3,"徒手命中，每回合一次；自動消耗1點氣／集中力；此選項不適用免消耗的疾風連擊版本。"],
  divineStrike:["cleric",7,"確認祝福打擊選的是神聖打擊；武器命中，自己回合一次。"],
  clericPotent:["cleric",7,"確認選的是強力施法；僅牧師戲法，請勿重複既有加值。"],
  pull:["cleric",3,"攻擊或法術傷害未滿血目標；每回合一次。"],
@@ -238,7 +227,7 @@ const RULES = {
  savage:[null,0,"僅近戰武器重擊；選武器的一顆基礎傷害骰，此額外骰不再因重擊翻倍。"],
  charger:[null,0,"攻擊動作中，直線移動至少10尺後立即近戰命中；每回合一次。"],
  gwm:[null,0,"自己回合，以攻擊動作中的重型武器命中；勿重複角色卡既有加值。"],
- spellfire:[null,0,"光耀法術傷害，每回合一次；需手動扣除所選生命骰，並持有網站要求的魔焰火花。"],
+ spellfire:[null,0,"光耀法術傷害，每回合一次；自動扣除所選生命骰，並持有網站要求的魔焰火花。"],
  fueled:[null,0,"塑能法術傷害，每回合一次；需手動扣除所選生命骰。"],
  frost:[null,0,"對束縛目標造成寒冷傷害時使用。"]
 };
@@ -300,17 +289,24 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
  case "charger":e.formula="1d8";break;
  case "gwm":e.formula=String(prof);break;
  case "spellfire":case "fueled":{
-  const sizes=[...new Set(Array.from(actor.items??[]).filter(i=>i.type==="class").map(i=>{
-   const value=i.system?.hd?.denomination??i.system?.hitDice;
-   const match=String(value??"").match(/^(?:1)?d(6|8|10|12)$/);
-   return match?Number(match[1]):null;
-  }).filter(Boolean))];
+  const sizes=[...new Set(hitDicePools(actor).map(p=>Number(p.denomination.slice(1))))];
   const ds=sizes.length?sizes:[6,8,10,12], formulas=ds.map(d=>"1d"+d);
   for(let a=0;a<ds.length;a++)for(let b=a;b<ds.length;b++)
    formulas.push(ds[a]===ds[b]?"2d"+ds[a]:"1d"+ds[a]+" + 1d"+ds[b]);
-  choose(formulas,key==="spellfire"?["radiant"]:["inherit"]);break;
+  choose(formulas,key==="spellfire"?["radiant"]:["inherit"]);
+  e.choices=e.choices.map(choice=>({...choice,resourceRequests:hitDiceRequests(choice.formula)}));
+  e.resourceRequests=[];e.resourceText="請選擇消耗的生命骰；各選項顯示剩餘數量";
+  break;
  }
  case "frost":e.formula=prof+"d4";break;
+ }
+ if(["psionic","harm"].includes(key)) {
+  applyResourceBinding(e,actor,bindResource(actor,owned,key,key==="psionic"?["Psionic Strike","靈能打擊","靈能打擊 Psionic Strike"]:["Hand of Harm","奪命之手","奪命之手 Hand of Harm"]));
+ }
+ if(key==="thug") {
+  const activity=resourceActivities(owned[0]).find(a=>resourceMatches(a,["Assassination","刺殺","刺殺 Assassination"]));
+  if(activity&&(activity.uses?.max>0||activity.consumption?.targets?.length))
+   applyResourceBinding(e,actor,bindResource(actor,owned,key,["Assassination","刺殺","刺殺 Assassination"]));
  }
  if(/NaN|undefined/.test(e.formula)||e.choices?.some(c=>/NaN|undefined/.test(c.formula)))
   e.disabledReason="無法讀取所需的屬性調整值或熟練加值";

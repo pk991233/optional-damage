@@ -4,12 +4,12 @@ import {PRESETS,DEFAULTS,parseOptions,availableOptions,replaceExtras} from "../s
 import {presetId,splitLegacy,combinedEntries,auditCustom,markExistingDamage,conflictGroup} from "../scripts/settings.mjs";
 const types=Object.fromEntries(["force","fire","cold","radiant","necrotic","psychic","acid","poison","lightning","thunder"].map(t=>[t,{}]));
 const all={version:1,disabled:[],custom:""};
-test("all 44 defaults migrate to builtin section without custom copies",()=>{
+test("all 42 defaults migrate to builtin section without custom copies",()=>{
  const s=splitLegacy(DEFAULTS);assert.equal(s.disabled.length,0);assert.equal(s.custom,"");
- assert.equal(combinedEntries(s,types,()=>true).length,44);
+ assert.equal(combinedEntries(s,types,()=>true).length,42);
 });
 test("blank legacy remains completely disabled",()=>{
- const s=splitLegacy("");assert.equal(s.disabled.length,44);
+ const s=splitLegacy("");assert.equal(s.disabled.length,42);
  assert.equal(combinedEntries(s,types,()=>true).length,0);
 });
 test("edited presets and custom aliases survive without their builtin duplicate",()=>{
@@ -21,7 +21,7 @@ test("edited presets and custom aliases survive without their builtin duplicate"
 test("custom overrides same preset even when builtin enabled; exact duplicates collapse",()=>{
  const s={...all,custom:"Hunter's Mark | 2d6 | force\nHunter's Mark | 2d6 | force"};
  const es=combinedEntries(s,types,()=>true);
- assert.equal(es.length,44);assert.equal(es.filter(e=>e.presetId===presetId(PRESETS[0])).length,1);
+ assert.equal(es.length,42);assert.equal(es.filter(e=>e.presetId===presetId(PRESETS[0])).length,1);
  assert.ok(auditCustom(s.custom).some(w=>w.includes("重複")));
 });
 test("different abilities with same dice both remain",()=>{

@@ -1,3 +1,4 @@
+import {resourcePlan, resourceDescription} from "./resources.mjs";
 import {quickAdd} from "./wizard.mjs";
 import {presetId, settingsData, splitLegacy, combinedEntries, auditCustom, conflictGroup, markExistingDamage} from "./settings.mjs";
 import {ID, DEFAULTS, parseOptions, replaceExtras, availableOptions, migrateOptions, migrateAncestryAliases, inheritedType} from "./options.mjs";
@@ -136,7 +137,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
     try {
       const subject = app.config.subject;
       const actor = subject?.actor ?? subject?.item?.actor;
-      state = {entries: markExistingDamage(availableOptions(entries(), actor, subject?.item?.id ?? subject?.id, subject?.item ? subject : undefined),app.config), selected: new Set()};
+      state = {actor, entries: markExistingDamage(availableOptions(entries(), actor, subject?.item?.id ?? subject?.id, subject?.item ? subject : undefined),app.config), selected: new Set()};
     }
     catch (error) { ui.notifications.error(error.message); return; }
     states.set(app, state);
@@ -149,13 +150,15 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
   legend.textContent = "額外傷害（本次擲骰）";
   panel.append(legend);
   const checkboxes = new Map();
+  const resourceRefreshers=[];
+  const refreshResources=()=>resourceRefreshers.forEach(fn=>fn());
   state.entries.forEach((entry, i) => {
     const row = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
     checkboxes.set(i,input);
     input.checked = state.selected.has(i);
-    input.disabled = Boolean(entry.disabledReason || entry.choicePending || (entry.requiresCritical && !app.config.isCritical));
+    input.disabled = Boolean(entry.disabledReason || entry.resourceError || entry.choicePending || (entry.requiresCritical && !app.config.isCritical));
     const label = document.createElement("span");
     let syncTarget = () => {};
     label.textContent = `${entry.label}：+ ${entry.formula} ${entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label)}`;
@@ -170,6 +173,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
         if(j!==i && conflictGroup(other)===group){state.selected.delete(j);if(checkboxes.has(j))checkboxes.get(j).checked=false;}
       });
       syncTarget();
+      refreshResources();
       replaceExtras(app.config, state.entries, state.selected);
       app.rebuild();
     });
@@ -180,8 +184,10 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
       note.textContent = entry.disabledReason || ((entry.requiresCritical && !app.config.isCritical) ? "僅重擊時可用。" : "") + entry.note;
       panel.append(note);
     }
+    let resourceSelect;
     if (entry.choices) {
       const select = document.createElement("select");
+      resourceSelect=select;
       select.setAttribute("aria-label", entry.label + "傷害選項");
       const placeholder = document.createElement("option");
       placeholder.value = ""; placeholder.textContent = "請選擇傷害類型／骰子";
@@ -201,14 +207,40 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
         const choice = select.value === "" ? undefined : entry.choices[Number(select.value)];
         entry.choicePending = !choice;
         if (choice) Object.assign(entry, choice);
-        input.disabled = Boolean(entry.disabledReason || entry.choicePending || (entry.requiresCritical && !app.config.isCritical));
+        else if(entry.choices.some(c=>c.resourceRequests))entry.resourceRequests=[];
+        input.disabled = Boolean(entry.disabledReason || entry.resourceError || entry.choicePending || (entry.requiresCritical && !app.config.isCritical));
         if (input.disabled) { input.checked = false; state.selected.delete(i); }
         label.textContent = entry.label + "：+ " + entry.formula + " " +
           (entry.type === "inherit" ? "同主要傷害類型" : game.i18n.localize(CONFIG.DND5E.damageTypes[entry.type].label));
+        refreshResources();
         replaceExtras(app.config, state.entries, state.selected);
         app.rebuild();
       });
       panel.append(select);
+    }
+    if(entry.resourceText || entry.choices?.some(c=>c.resourceRequests)) {
+      const resourceHint=document.createElement("small");
+      panel.append(resourceHint);
+      resourceRefreshers.push(()=>{
+        const other=state.entries.flatMap((e,j)=>j!==i&&state.selected.has(j)?e.resourceRequests??[]:[]);
+        if(entry.choices?.some(c=>c.resourceRequests)&&resourceSelect) {
+          entry.choices.forEach((choice,index)=>{
+            const option=resourceSelect.children[index+1];
+            let reason="";
+            try{resourcePlan(state.actor,[...other,...choice.resourceRequests]);}catch(error){reason=error.message;}
+            option.disabled=Boolean(reason);
+            option.textContent=choice.formula+" · "+resourceDescription(state.actor,choice.resourceRequests)+(reason?"（不可用）":"");
+          });
+        }
+        if(entry.resourceRequests?.length) {
+          entry.resourceText=resourceDescription(state.actor,entry.resourceRequests);
+          entry.resourceError="";
+          try{resourcePlan(state.actor,[...other,...entry.resourceRequests]);}catch(error){entry.resourceError=error.message;}
+        } else if(entry.choices?.some(c=>c.resourceRequests))entry.resourceError="";
+        resourceHint.textContent=entry.resourceText+(entry.resourceError?"；"+entry.resourceError:"");
+        input.disabled=Boolean(entry.disabledReason||entry.resourceError||entry.choicePending||(entry.requiresCritical&&!app.config.isCritical));
+        if(input.disabled){input.checked=false;state.selected.delete(i);}
+      });
     }
     if (entry.smite) {
       const controls = document.createElement("div");
@@ -259,6 +291,7 @@ Hooks.on("renderDamageRollConfigurationDialog", (app, html) => {
       panel.append(controls);
     }
   });
+  refreshResources();
   const hint = document.createElement("small");
   hint.textContent = "請自行確認觸發條件；已由其他效果加入的傷害，請勿重複勾選。";
   panel.append(hint);

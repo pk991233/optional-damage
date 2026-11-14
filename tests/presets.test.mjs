@@ -12,10 +12,10 @@ function find(a,key,spell=false) {
  if(spell&&!a.items.some(i=>i.id==="spell"))a.items.push({id:"spell",name:"Test spell",type:"spell",system:{level:0}});
  return availableOptions(entries,a,spell?"spell":undefined).find(e=>e.presetKey===key);
 }
-test("32 additions, distinct keys and no repeated existing smites or ancestries",()=>{
- assert.equal(PRESETS.length,44);
- assert.equal(new Set(PRESETS.map(p=>p[0])).size,44);
- assert.equal(new Set(PRESETS.slice(12).map(p=>p[1])).size,32);
+test("30 additions, distinct keys and no repeated existing smites or ancestries",()=>{
+ assert.equal(PRESETS.length,42);
+ assert.equal(new Set(PRESETS.map(p=>p[0])).size,42);
+ assert.equal(new Set(PRESETS.slice(12).map(p=>p[1])).size,30);
  assert.equal(PRESETS.filter(p=>p[1]==="eldritch").length,1);
 });
 test("class scaling and minimum levels",()=>{
@@ -64,13 +64,13 @@ test("odd proficiency rounding choice and multiclass mixed hit dice",()=>{
  assert.ok(find(b,"spellfire",true).choices.some(c=>c.formula==="1d8 + 1d6"));
 });
 test("manual costs and recipient inspiration die choice",()=>{
- assert.match(find(actor("Psionic Strike","Fighter",5),"psionic").note,/手動/);
- const e=find(actor("Combat Inspiration"),"inspiration");
+ assert.match(find(actor("Psionic Strike","Fighter",5),"psionic").note,/自動/);
+ const e=availableOptions(parseOptions("戰鬥激勵 | preset:inspiration | inherit | Combat Inspiration",types,()=>true),actor("Combat Inspiration"))[0];
  assert.equal(e.choices.length,4);assert.ok(e.choicePending);
 });
 test("migration preserves custom rows and empty lists and is idempotent",()=>{
  const old="Custom | 1d6 | cold\nDivine Fury | 3d8 | radiant",next=migrateOptions(old,PRESETS.slice(12));
- assert.equal(next.split("\n").length,33);assert.equal(migrateOptions(next,PRESETS.slice(12)),next);
+ assert.equal(next.split("\n").length,31);assert.equal(migrateOptions(next,PRESETS.slice(12)),next);
  assert.ok(next.startsWith(old));assert.equal(migrateOptions("",PRESETS.slice(12)),"");
  assert.match(migrateAncestryAliases("霜之寒冷 | 1d6 | cold | Giant Ancestry (Frost)"),/霜之刺骨/);
 });

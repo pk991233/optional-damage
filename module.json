@@ -2,10 +2,10 @@
   "id": "optional-damage",
   "title": "額外傷害選擇 Optional Damage",
   "description": "在 DnD5e 傷害視窗勾選額外傷害骰。",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "url": "https://github.com/pk991233/optional-damage",
   "manifest": "https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json",
-  "download": "https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.8.1.zip",
+  "download": "https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.0.zip",
   "authors": [
     {
       "name": "pk123"

@@ -1,3 +1,21 @@
+# v0.9.0：靈能骰、氣與生命骰自動消耗
+
+- 辨識「暴徒 Thug」及其「刺殺 Assassination」活動。若刺殺活動設定了使用次數或固定消耗，會連動扣除該活動資源；不會扣到消失活動。
+- 靈能打擊：自動扣除靈能骰。奪命之手：自動扣除氣／集中力。優先使用對應活動的消耗設定，再搜尋唯一的同名資源池。
+- 支援活動連結的 itemUses、activityUses，以及 resources.*.value 角色資源；活動消耗量須為固定正整數。缺少來源、設定不支援或來源不唯一時顯示原因並停用，不會猜測扣除。
+- 奪命之手此選項為正常付費使用；免消耗版本請由原能力另行操作，不會自動判斷疾風連擊的免費觸發。
+- 魔焰專家與塑能增幅（Fueled Evocation）：選一至兩顆生命骰，自動依骰面扣除職業的 system.hd.spent，支援不同骰面及多個同骰面的兼職。
+- 畫面顯示資源剩餘／上限與本次消耗量；生命骰不足時不能選擇該組合。不同附傷共用同一生命骰餘額，正式擲骰前後再次檢查，避免超額扣除。
+- 取消、預覽或擲骰失敗不扣除；重擊不增加消耗。同一瀏覽器按角色序列化寫入；部分寫入失敗時嘗試退還，退還失敗會通知 GM。不同瀏覽器同時操作仍不保證原子性。
+- 移除勇氣學院「戰鬥激勵」與靈魂學院「強化通靈」預設，現有 42 項。使用者自訂資料不刪除，舊自訂公式仍相容。
+- 94 項 JavaScript 邏輯／模擬介面測試通過（V8 相容執行器）；尚未在使用者實際 FVTT／Midi-QOL 世界實測。
+
+資料欄位依 DND5e 5.3.3 原始碼核對：
+[Class HD](https://github.com/foundryvtt/dnd5e/blob/release-5.3.3/module/data/item/class.mjs)、
+[Consumption Targets](https://github.com/foundryvtt/dnd5e/blob/release-5.3.3/module/data/activity/fields/consumption-targets-field.mjs)。
+
+---
+
 # v0.8.1：牧師選項、匯入名稱與資源扣除修正
 
 - 牧師 7 級起，在預設啟用且尚未偵測到單項選擇時，同時提供神聖打擊與強力施法；兩項可直接勾選，勾選另一項會取消前一項，不會停用另一項。神聖打擊預先使用光耀傷害，可切換黯蝕。
@@ -121,9 +139,9 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.8.1.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.0.zip)
 
-已安裝者檢查更新至 0.8.1，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
+已安裝者檢查更新至 0.9.0，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 
 ## 預設
 

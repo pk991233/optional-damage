@@ -1,3 +1,4 @@
+import {resourceActivities, resourceMatches} from "./resources.mjs";
 import {EXTRA_PRESETS, EXTRA_KEYS, resolveExtra} from "./presets.mjs";
 import {spellSlots, smiteFormula} from "./smite.mjs";
 export const ID = "optional-damage";
@@ -62,6 +63,9 @@ export function availableOptions(entries, actor, sourceItemId, sourceActivity) {
   return entries.flatMap(entry => {
     let owned = items.filter(item => (["spell", "feat"].includes(item.type) || (entry.formula === "preset:launcher" && item.type === "weapon"))
       && (matches(item.name, entry.aliases) || matches(item.system?.identifier, entry.aliases)));
+    if(["preset:thug","preset:psionic","preset:harm"].includes(entry.formula)&&!owned.length) {
+      owned=items.filter(item=>item.type==="feat"&&resourceActivities(item).some(a=>resourceMatches(a,entry.aliases)));
+    }
     if (["preset:divineStrike","preset:clericPotent"].includes(entry.formula)) {
       const strike=["Divine Strike","神聖打擊"],potent=["Potent Spellcasting","強力施法","強力施法（牧師）"];
       const explicit=aliases=>items.filter(i=>i.type==="feat" &&
@@ -199,7 +203,7 @@ export function replaceExtras(config, entries, selected) {
   const base = config.rolls.filter(r => !r.options?.[ID]);
   const properties = base[0]?.options?.properties;
   const selectedKeys = new Set();
-  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).filter(entry => {
+  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.resourceError && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).filter(entry => {
     const kind=entry.presetKey ?? entry.presetId;
     const group=["divineStrike","clericPotent"].includes(kind) ? "cleric-blessed" : ["primal","druidPotent"].includes(kind) ? "druid-fury" : undefined;
     const key=group ?? entry.presetId ?? JSON.stringify([entry.aliases?.map(normalizeName).sort(),entry.formula.replace(/\s/g,""),entry.type]);
@@ -211,6 +215,7 @@ export function replaceExtras(config, entries, selected) {
       parts: [entry.smite ? smiteFormula(entry) : entry.formula], data: base[0]?.data ?? {}, situational: false,
       options: {
         [ID]: true, optionalDamageInherit: entry.type === "inherit",
+        ...(entry.resourceRequests?.length ? {optionalDamageResources:entry.resourceRequests.map(r=>({...r}))} : {}),
         ...(entry.consumes ? {optionalDamageSource: entry.sourceItemId} : {}),
         ...(entry.smite ? {optionalDamageSlot:{kind:entry.smite, key:entry.slotKey,
           level:entry.slots.find(s=>s.key===entry.slotKey).level, abilityId:entry.abilityId}} : {}),
