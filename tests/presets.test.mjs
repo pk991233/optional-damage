@@ -42,13 +42,17 @@ test("choice-dependent damage blocked until chosen",()=>{
  Object.assign(e,e.choices[1],{choicePending:false});
  replaceExtras(config,[e],new Set([0]));assert.equal(config.rolls[1].options.type,"necrotic");
 });
-test("Savage Attacks critical-only extra die is not doubled",()=>{
+test("Savage Attacks can be prepared before the player chooses a critical hit",()=>{
  const e=find(actor("Savage Attacks"),"savage");
  Object.assign(e,e.choices[2],{choicePending:false});
  const c={rolls:[{parts:["1d8"],options:{type:"piercing"}}]};
- replaceExtras(c,[e],new Set([0]));assert.equal(c.rolls.length,1);
- c.isCritical=true;replaceExtras(c,[e],new Set([0]));
- assert.equal(c.rolls[1].parts[0],"1d8");assert.equal(c.rolls[1].options.isCritical,false);
+ replaceExtras(c,[e],new Set([0]));
+ assert.equal(c.rolls[1].parts[0],"1d8");
+ assert.equal(c.rolls[1].options.optionalDamageCriticalOnly,true);
+ assert.equal(c.rolls[1].options.critical.multiplier,1);
+ assert.equal(c.rolls[1].options.critical.powerfulCritical,false);
+ c.critical={allow:false};replaceExtras(c,[e],new Set([0]));
+ assert.equal(c.rolls.length,1);
 });
 test("Arcane Jolt charge binding exhaustion and direct roll exclusion",()=>{
  const a=actor("Arcane Jolt","Artificer",15),e=find(a,"jolt");

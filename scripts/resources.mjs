@@ -37,6 +37,12 @@ const PRIMARY_POOLS={
  psionic:["Psionic Energy Die","Psionic Energy Dice"],
  harm:["Focus Point","Focus Points"]
 };
+function attributeRequest(actor, id, cost, label) {
+ const base = "system.resources." + id;
+ const tracksSpent = resourceRead(actor._source, base + ".spent") !== undefined
+  && resourceRead(actor._source, base + ".value") === undefined;
+ return {path:base + (tracksSpent ? ".spent" : ".value"), direction:tracksSpent ? 1 : -1, cost, label};
+}
 function primaryResource(actor,key) {
  const names=PRIMARY_POOLS[key];
  if(!names)return null;
@@ -50,9 +56,8 @@ function primaryResource(actor,key) {
  const attributes=Object.entries(actor.system?.resources??{}).filter(([,r])=>resourceMatches({name:r.label},names));
  if(attributes.length>1)return {error:"找到多個 "+names[0]+" 角色資源，請保留唯一來源"};
  if(attributes.length===1) {
-  const [id,data]=attributes[0],path="system.resources."+id+".value",spent=path.replace(/\.value$/,".spent");
-  const isSpent=resourceRead(actor._source,spent)!==undefined&&resourceRead(actor._source,path)===undefined;
-  return {requests:[{path:isSpent?spent:path,direction:isSpent?1:-1,cost:1,label:data.label}]};
+  const [id,data]=attributes[0];
+  return {requests:[attributeRequest(actor,id,1,data.label)]};
  }
  return null;
 }
@@ -76,9 +81,8 @@ export function bindResource(actor,owned,key,activityNames) {
     requests.push(usesResource(pool,null,cost));
    } else if(target.type==="activityUses") requests.push(usesResource(item,activity,cost));
    else if(target.type==="attribute"&&/^resources\.[\w-]+\.value$/.test(target.target)) {
-    const path="system."+target.target,spent=path.replace(/\.value$/,".spent");
-    const isSpent=resourceRead(actor._source,spent)!==undefined&&resourceRead(actor._source,path)===undefined;
-    requests.push({path:isSpent?spent:path,direction:isSpent?1:-1,cost,label:key==="harm"?"氣／集中力":"靈能骰"});
+    const id=target.target.split(".")[1];
+    requests.push(attributeRequest(actor,id,cost,actor.system.resources?.[id]?.label || id));
    } else return {error:"此活動的資源類型尚不支援自動扣除"};
   }
   return {requests};
@@ -90,7 +94,7 @@ export function bindResource(actor,owned,key,activityNames) {
  if(pools.length===1)return {requests:[usesResource(pools[0])]};
  if(item.system?.uses?.max>0)return {requests:[usesResource(item)]};
  const attributes=Object.entries(actor.system?.resources??{}).filter(([,r])=>resourceMatches({name:r.label},POOLS[key]??[]));
- if(attributes.length===1)return {requests:[{path:"system.resources."+attributes[0][0]+".value",direction:-1,cost:1,label:attributes[0][1].label}]};
+ if(attributes.length===1)return {requests:[attributeRequest(actor,attributes[0][0],1,attributes[0][1].label)]};
  return {error:attributes.length>1?"找到多個角色資源，請在活動中指定來源":"找不到氣／集中力或靈能骰資源；請設定能力活動的消耗來源"};
 }
 export function hitDicePools(actor) {

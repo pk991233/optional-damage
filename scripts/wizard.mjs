@@ -1,7 +1,10 @@
+import {parseAbilityAliases} from "./options.mjs";
+
 // Keep the generated row compatible with the advanced text editor.
 export function customRow(data, types) {
  const label=String(data.label??"").trim(), aliases=String(data.aliases??"").trim()||label;
  if(!label || /[|\r\n]/.test(label+aliases)) throw new Error("名稱不可空白，也不能包含換行或 |。");
+ parseAbilityAliases(aliases);
  const count=Number(data.count),faces=Number(data.faces),bonus=Number(data.bonus??0);
  if(!Number.isInteger(count)||count<1||count>100)throw new Error("骰子數量須為 1–100 的整數。");
  if(![4,6,8,10,12,20,100].includes(faces))throw new Error("請選擇有效骰面。");

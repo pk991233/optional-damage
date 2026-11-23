@@ -1,6 +1,7 @@
-import {normalizedAbilityName, abilityMatches, damageConflictGroup} from "./rules.mjs";
-import {resourceActivities, resourceMatches} from "./resources.mjs";
-import {EXTRA_PRESETS, EXTRA_KEYS, resolveExtra} from "./presets.mjs";
+import {normalizedAbilityName, abilityMatches, entriesConflict} from "./rules.mjs";
+import {canSelectEntry} from "./critical.mjs";
+import {resourceItems, resourceActivities, resourceMatches} from "./resources.mjs";
+import {EXTRA_PRESETS, EXTRA_KEYS, classLevel, resolveExtra} from "./presets.mjs";
 import {spellSlots, smiteFormula} from "./smite.mjs";
 export const ID = "optional-damage";
 export const PRESETS = [
@@ -37,63 +38,151 @@ export function useStatus(item) {
 }
 export const normalizeName = normalizedAbilityName;
 const matches = abilityMatches;
-export function parseOptions(text, types, validate) {
-  return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map((line, index) => {
-    const fields = line.split("|").map(s => s.trim());
-    const [label, formula, type, names] = fields;
-    if (fields.length < 3 || fields.length > 4 || !label || !formula || (type !== "inherit" && !Object.hasOwn(types, type))) {
-      throw new Error(`第 ${index + 1} 列格式錯誤：名稱 | 骰式 | 傷害類型 | 能力名稱（分號分隔）`);
-    }
-    if (!["sneak","divine","eldritch","fey","gloom","colossus","polar","firearm"].includes(formula) && !EXTRA_KEYS.has(formula) && !validate(formula)) throw new Error(`第 ${index + 1} 列骰式錯誤：${formula}`);
-    const preset = PRESETS.find(p => normalizeName(label) === normalizeName(p[0])) ?? PRESETS.find(p => matches(label, p[3].split(";")));
-    const aliases = (names || preset?.[3] || label).split(/[;；]/).map(s => s.trim()).filter(Boolean);
-    if (aliases.some(a => !normalizeName(a))) throw new Error(`第 ${index + 1} 列能力名稱不能只有標點。`);
-    const consumes = PRESETS.slice(3,5).some(p => p === preset || aliases.some(a => matches(a, p[3].split(";"))));
-    const smite = ["divine","eldritch"].includes(formula) ? formula : undefined;
-    return {label, formula, type, aliases, consumes, smite};
-  });
+const specialFormulas = new Set(["sneak", "divine", "eldritch", "fey", "gloom", "colossus", "polar", "firearm"]);
+export const isSpecialFormula = formula => specialFormulas.has(formula) || EXTRA_KEYS.has(formula);
+
+export function parseAbilityAliases(raw) {
+  const aliases = raw.split(/[;；]/).map(name => name.trim()).filter(Boolean);
+  if (!aliases.length || aliases.some(alias => !normalizeName(alias))) {
+    throw new Error("能力名稱須包含文字，不能只有標點或分號。");
+  }
+  return aliases;
 }
+
+function parseOptionLine(line, types, validate) {
+  const fields = line.split("|").map(s => s.trim());
+  const [label, formula, type, names] = fields;
+  if (fields.length < 3 || fields.length > 4 || !label || !formula || (type !== "inherit" && !Object.hasOwn(types, type))) {
+    throw new Error("格式錯誤：名稱 | 骰式 | 傷害類型 | 能力名稱（分號分隔）");
+  }
+  if (!isSpecialFormula(formula) && !validate(formula)) throw new Error(`骰式錯誤：${formula}`);
+  const preset = PRESETS.find(p => normalizeName(label) === normalizeName(p[0])) ?? PRESETS.find(p => matches(label, p[3].split(";")));
+  const aliases = parseAbilityAliases(names || preset?.[3] || label);
+  const consumes = PRESETS.slice(3,5).some(p => p === preset || aliases.some(a => matches(a, p[3].split(";"))));
+  const smite = ["divine","eldritch"].includes(formula) ? formula : undefined;
+  return {label, formula, type, aliases, consumes, smite};
+}
+
+// New submissions must validate in full. Existing settings may contain legacy or invalid rows.
+export function parseOptions(text, types, validate, onInvalid) {
+  const options = [];
+  for (const [index, line] of String(text ?? "").split(/\r?\n/).entries()) {
+    if (!line.trim()) continue;
+    try {
+      options.push(parseOptionLine(line, types, validate));
+    } catch (cause) {
+      const error = new Error(`第 ${index + 1} 列${cause.message}`);
+      if (!onInvalid) throw error;
+      onInvalid(error);
+    }
+  }
+  return options;
+}
+const CLASS_CHOICES = {
+  cleric: {
+    classNames: ["Cleric", "牧師"], parent: ["Blessed Strikes", "祝福打擊"],
+    strike: ["Divine Strike", "神聖打擊"], potent: ["Potent Spellcasting", "強力施法", "強力施法（牧師）"]
+  },
+  druid: {
+    classNames: ["Druid", "德魯伊"], parent: ["Elemental Fury", "元素狂怒"],
+    strike: ["Primal Strike", "原初打擊"], potent: ["Potent Spellcasting", "強力施法", "強力施法（德魯伊）"]
+  }
+};
+const CHOICE_PRESETS = {
+  "preset:divineStrike": ["cleric", "strike"], "preset:clericPotent": ["cleric", "potent"],
+  "preset:primal": ["druid", "strike"], "preset:druidPotent": ["druid", "potent"]
+};
+
+function choiceClass(item, items) {
+  const flags = item.flags?.dnd5e;
+  const links = [flags?.advancementOrigin, flags?.advancementRoot].filter(Boolean);
+  const parents = links.map(link => {
+    const id = typeof link === "string" ? link.split(".")[0] : link.itemId ?? link.id;
+    return items.find(parent => id && parent.id === id);
+  }).filter(Boolean);
+  if (links.every(link => typeof link === "string")) {
+    const root = item.system?.advancementRootItem ?? item.advancementRootItem;
+    if (root) parents.push(root);
+  }
+  for (const [key, rule] of Object.entries(CLASS_CHOICES)) {
+    if (matches(item.system?.classIdentifier, rule.classNames) || parents.some(parent =>
+      (parent.type === "class" && resourceMatches(parent, rule.classNames)) ||
+      (parent.type === "subclass" && (matches(parent.system?.classIdentifier, rule.classNames) || resourceMatches(parent.class, rule.classNames))) ||
+      resourceMatches(parent, rule.parent))) return key;
+  }
+  const requirements = String(item.system?.requirements ?? "");
+  const cleric = /\bcleric\b|牧師/i.test(requirements) || matches(item.name, ["牧師", "Cleric"]);
+  const druid = /\bdruid\b|德魯伊/i.test(requirements) || matches(item.name, ["德魯伊", "Druid"]);
+  if (cleric !== druid) return cleric ? "cleric" : "druid";
+}
+
+// A parent lists the available choices. Only a granted child or a single matching
+// activity on that parent identifies a choice.
+function classChoiceItems(entry, items, source, owned) {
+  const [classKey, choice] = CHOICE_PRESETS[entry.formula];
+  const rule = CLASS_CHOICES[classKey], other = choice === "potent" ? "strike" : "potent";
+  const feats = items.filter(item => item.type === "feat");
+  const parents = feats.filter(item => resourceMatches(item, rule.parent));
+  if (source && parents.includes(source)) return [];
+  const belongs = item => {
+    const owner = choiceClass(item, items);
+    return !owner || owner === classKey;
+  };
+  const explicit = kind => feats.filter(item => resourceMatches(item, rule[kind]) && belongs(item));
+  const chosen = explicit(choice);
+  const spellClass = source?.type === "spell" && source.system?.classIdentifier;
+  if (choice === "potent" && spellClass) {
+    const otherClass = classKey === "cleric" ? "druid" : "cleric";
+    if (matches(spellClass, CLASS_CHOICES[otherClass].classNames) &&
+      items.some(item => item.type === "class" && resourceMatches(item, CLASS_CHOICES[otherClass].classNames))) return [];
+  }
+  if (chosen.length) return chosen;
+  if (explicit(other).length) return [];
+
+  const parentWithChoice = kind => parents.filter(item => resourceActivities(item).some(a => resourceMatches(a, rule[kind])));
+  const named = parentWithChoice(choice);
+  if (named.length) return named;
+  if (parentWithChoice(other).length) return [];
+  const sameClass = owned.filter(belongs);
+  if (sameClass.length || classKey !== "cleric") return sameClass;
+  if (choice === "potent" && feats.some(item => resourceMatches(item, rule.potent) && !belongs(item))) return [];
+  return items.filter(item => item.type === "class" && resourceMatches(item, rule.classNames));
+}
+
+const LAUNCHER_ACTIVITY = ["Lightning Launcher", "閃電發射器", "Infiltrator", "滲透者", "潛入者"];
+function launcherSource(item, activity, aliases) {
+  if (!item) return [];
+  if (activity && resourceMatches(activity, ["Guardian", "守護者", "Thunder Gauntlets", "雷鳴護手"])) return [];
+  if (resourceMatches(item, aliases) || (activity && resourceMatches(activity, LAUNCHER_ACTIVITY))) return [item];
+  // Some callers send only the source item. Keep the manual choice on its own armor.
+  return !activity && resourceActivities(item).some(a => resourceMatches(a, LAUNCHER_ACTIVITY)) ? [item] : [];
+}
+
 export function availableOptions(entries, actor, sourceItemId, sourceActivity) {
   if (!actor) return [];
-  const items = Array.from(actor.items ?? []);
+  const items = resourceItems(actor);
+  const source = sourceItemId ? items.find(item => item.id === sourceItemId) : undefined;
   return entries.flatMap(entry => {
     let owned = items.filter(item => (["spell", "feat"].includes(item.type) || (entry.formula === "preset:launcher" && item.type === "weapon"))
       && (matches(item.name, entry.aliases) || matches(item.system?.identifier, entry.aliases)));
     if(["preset:thug","preset:psionic","preset:harm"].includes(entry.formula)&&!owned.length) {
       owned=items.filter(item=>item.type==="feat"&&resourceActivities(item).some(a=>resourceMatches(a,entry.aliases)));
     }
-    if (["preset:divineStrike","preset:clericPotent"].includes(entry.formula)) {
-      const strike=["Divine Strike","神聖打擊"],potent=["Potent Spellcasting","強力施法","強力施法（牧師）"];
-      const explicit=aliases=>items.filter(i=>i.type==="feat" &&
-        [i.name,i.system?.identifier].some(n=>matches(n,aliases)));
-      const own=explicit(entry.formula==="preset:divineStrike"?strike:potent);
-      const other=explicit(entry.formula==="preset:divineStrike"?potent:strike);
-      if(other.length&&!own.length)return [];
-      if(own.length)owned=own;
-      // A class or parent feature permits manual choice until an explicit child is present.
-      if(!owned.length)owned=items.filter(i=>i.type==="class"&&
-        [i.name,i.system?.identifier].some(n=>matches(n,["Cleric","牧師"])));
-    }
-    if(entry.formula==="preset:launcher"&&!owned.length) {
-      const source=items.find(i=>i.id===sourceItemId);
-      const aliases=["Lightning Launcher","閃電發射器","Infiltrator","滲透者","潛入者"];
-      const activities=sourceActivity?[sourceActivity]:Array.from(source?.system?.activities?.values?.()??Object.values(source?.system?.activities??{}));
-      if(source&&activities.some(a=>[a.name,a.identifier,a.system?.identifier].some(n=>matches(n,aliases))))owned=[source];
-    }
+    if (Object.hasOwn(CHOICE_PRESETS, entry.formula)) owned = classChoiceItems(entry, items, source, owned);
+    if (entry.formula === "preset:launcher") owned = launcherSource(source, sourceActivity, entry.aliases);
     if (PARENT_ALIASES[entry.formula] && sourceItemId && owned.some(item=>item.id===sourceItemId)) return [];
     const parents = PARENT_ALIASES[entry.formula] ? items.filter(item => item.type === "feat"
       && (matches(item.name, PARENT_ALIASES[entry.formula]) || matches(item.system?.identifier, PARENT_ALIASES[entry.formula]))) : [];
     // Dread Ambusher owns the charges even when a separate child feature also exists.
     // Hunter's Prey is only a fallback; its description lists both selectable options.
     const fromParent = parents.length > 0 && (entry.formula === "gloom" || !owned.length);
+    if (source && parents.includes(source)) return [];
     if (fromParent) owned = parents;
-    if (entry.formula === "preset:launcher" && sourceItemId && owned.some(item=>item.id===sourceItemId)) owned = owned.filter(item=>item.id===sourceItemId);
     if (!owned.length) return [];
     if (entry.formula !== "preset:launcher" && sourceItemId && owned.some(item=>item.id===sourceItemId)) return [];
     if (EXTRA_KEYS.has(entry.formula)) return resolveExtra(entry, actor, owned, sourceItemId, useStatus);
     if (["fey","gloom","polar","colossus","firearm"].includes(entry.formula)) {
       const kind = entry.formula;
-      if (sourceItemId && owned.some(item => item.id === sourceItemId)) return [];
       let ambiguity = false;
       if (["fey","gloom"].includes(kind)) {
         const hasSubclass = aliases => items.some(item => item.type === "subclass"
@@ -115,17 +204,13 @@ export function availableOptions(entries, actor, sourceItemId, sourceActivity) {
         });
         if (!owned.length) return [];
       }
-      const rangerLevel = Number(items.find(item => item.type === "class" &&
-        (matches(item.name,["Ranger","遊俠","游侠"]) || matches(item.system?.identifier,["ranger"])))?.system?.levels);
+      const rangerLevel = classLevel(actor, "ranger");
       let formula = kind === "gloom" ? (rangerLevel >= 11 ? "2d8" : "2d6") : "1d8";
       if (["fey","polar"].includes(kind)) {
-        const ranger = items.find(item => item.type === "class" &&
-          (matches(item.name,["Ranger","遊俠","游侠"]) || matches(item.system?.identifier,["ranger"])));
-        const level = Number(ranger?.system?.levels);
-        if (!Number.isInteger(level) || level < 1 || level > 20) return [];
-        formula = level >= 11 ? "1d6" : "1d4";
+        if (!rangerLevel) return [];
+        formula = rangerLevel >= 11 ? "1d6" : "1d4";
       }
-      if (kind === "firearm" && items.find(item=>item.id===sourceItemId)?.type !== "spell") return [];
+      if (kind === "firearm" && source?.type !== "spell") return [];
       const notes = {
         fey:"武器命中；每個目標每回合一次", gloom:"武器命中；每回合一次；消耗特性 1 次",
         polar:"武器命中；每個目標每回合一次", colossus:fromParent
@@ -141,7 +226,6 @@ export function availableOptions(entries, actor, sourceItemId, sourceActivity) {
           owned.length > 1 ? "找到多個對應特性，請保留唯一對應項目" : status.reason}];
     }
     if (entry.smite) {
-      if (sourceItemId && owned.some(item => item.id === sourceItemId)) return [];
       const slots = spellSlots(actor, entry.smite);
       const slotKey = slots.find(s=>s.value > 0)?.key;
       const result = {...entry, slots, slotKey, abilityId:owned[0].id, specialTarget:false,
@@ -150,11 +234,15 @@ export function availableOptions(entries, actor, sourceItemId, sourceActivity) {
       return [result];
     }
     if (entry.consumes) {
-      if (sourceItemId && owned.some(item => item.id === sourceItemId)) return [];
       const item = owned[0];
       const status = useStatus(item);
       return [{...entry, sourceItemId: item.id, remaining: status.remaining, maximum: status.maximum,
         disabledReason: owned.length > 1 ? "找到多個同名特性，請保留唯一對應項目" : status.reason}];
+    }
+    if (entry.origin === "preset" && entry.presetId === normalizeName("獵人印記") && classLevel(actor, "ranger") === 20 &&
+      items.some(item => item.type === "feat" && resourceMatches(item, ["Foe Slayer", "屠滅眾敵", "屠滅眾敵 Foe Slayer"]) &&
+        !/2014|legacy/i.test(String(item.system?.source?.rules || item.system?.source?.book || "")))) {
+      return [{...entry, formula: "1d10"}];
     }
     if (entry.formula !== "sneak") return [entry];
     const rogue = items.find(item => item.type === "class"
@@ -199,12 +287,17 @@ export function replaceExtras(config, entries, selected) {
   const base = config.rolls.filter(r => !r.options?.[ID]);
   const properties = base[0]?.options?.properties;
   const selectedKeys = new Set();
-  const extras = entries.filter((entry, i) => selected.has(i) && !entry.disabledReason && !entry.resourceError && !entry.choicePending && (!entry.requiresCritical || config.isCritical === true)).filter(entry => {
-    const group=damageConflictGroup(entry);
-    const key=group || entry.presetId || JSON.stringify([entry.aliases?.map(normalizeName).sort(),entry.formula.replace(/\s/g,""),entry.type]);
-    if(selectedKeys.has(key))return false;
-    selectedKeys.add(key);return true;
-  }).map(entry => {
+  const chosen = [];
+  for (const [i, entry] of entries.entries()) {
+    if (!selected.has(i) || !canSelectEntry(entry, config)) continue;
+    const key = entry.presetId || JSON.stringify([
+      entry.aliases?.map(normalizeName).sort(), entry.formula.replace(/\s/g, ""), entry.type
+    ]);
+    if (selectedKeys.has(key) || chosen.some(other => entriesConflict(entry, other))) continue;
+    selectedKeys.add(key);
+    chosen.push(entry);
+  }
+  const extras = chosen.map(entry => {
     const type = entry.type === "inherit" ? inheritedType(config) : entry.type;
     return {
       parts: [entry.smite ? smiteFormula(entry) : entry.formula], data: base[0]?.data ?? {}, situational: false,
@@ -215,8 +308,13 @@ export function replaceExtras(config, entries, selected) {
         ...(entry.smite ? {optionalDamageSlot:{kind:entry.smite, key:entry.slotKey,
           level:entry.slots.find(s=>s.key===entry.slotKey).level, abilityId:entry.abilityId}} : {}),
         type, types: type ? [type] : [], flavor: entry.label,
-        isCritical: !entry.noCritical && config.isCritical === true,
-        ...(properties ? {properties} : {}), critical: {bonusDice: 0, bonusDamage: ""}
+        isCritical: config.isCritical === true,
+        ...(entry.requiresCritical ? {optionalDamageCriticalOnly: true} : {}),
+        ...(properties ? {properties} : {}),
+        critical: {
+          bonusDice: 0, bonusDamage: "",
+          ...(entry.noCritical ? {multiplier: 1, powerfulCritical: false, multiplyNumeric: false} : {})
+        }
       }
     };
   });

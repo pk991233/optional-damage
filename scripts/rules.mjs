@@ -21,3 +21,13 @@ export function damageConflictGroup(entry) {
  if(["primal","druidPotent"].includes(key))return "druid-fury";
  return entry.presetId?"preset:"+entry.presetId:"";
 }
+
+export function entriesConflict(left, right) {
+ const group = damageConflictGroup(left);
+ if (group && group === damageConflictGroup(right)) return true;
+ const leftKey = left.presetKey ?? left.presetId;
+ const rightKey = right.presetKey ?? right.presetId;
+ const sharedPotent = (leftKey === "clericPotent" && rightKey === "druidPotent") ||
+   (leftKey === "druidPotent" && rightKey === "clericPotent");
+ return Boolean(sharedPotent && left.sourceItemId && left.sourceItemId === right.sourceItemId);
+}

@@ -1,3 +1,6 @@
+export function slotHasUses(value, cost = 1) {
+  return Number.isInteger(value) && value >= cost;
+}
 export function spellSlots(actor, kind) {
   const spells = actor?.system?.spells ?? {};
   const keys = kind === "eldritch" ? ["pact"] : [...Array.from({length:9}, (_,i)=>`spell${i+1}`), "pact"];
@@ -27,7 +30,7 @@ export function slotUpdates(actor, rolls) {
   }
   return Object.fromEntries([...costs].map(([key,cost]) => {
     const value = actor.system.spells[key].value;
-    if (!Number.isInteger(value) || value < cost) throw new Error("選擇的法術位數量不足；同時使用兩種重斬需要兩個法術位。");
+    if (!slotHasUses(value, cost)) throw new Error("選擇的法術位數量不足；同時使用兩種重斬需要兩個法術位。");
     return [`system.spells.${key}.value`, value - cost];
   }));
 }

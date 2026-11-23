@@ -1,5 +1,5 @@
 import {objectMatchesAbility} from "./rules.mjs";
-import {resourceActivities, resourceMatches, bindResource, bindFlurryResource, hitDicePools, hitDiceRequests, applyResourceBinding} from "./resources.mjs";
+import {resourceItems, resourceActivities, resourceMatches, bindResource, bindFlurryResource, hitDicePools, hitDiceRequests, applyResourceBinding} from "./resources.mjs";
 // Opt-in damage presets. Conditions and manual costs are displayed to the player.
 export const EXTRA_PRESETS = [
   [
@@ -185,13 +185,13 @@ export const EXTRA_PRESETS = [
 ];
 export const EXTRA_KEYS = new Set([...EXTRA_PRESETS.map(p=>p[1]),"preset:radiant","preset:inspiration","preset:channeling"]);
 const CLASSES = {
- rogue:["rogue","遊蕩者","盜賊"], barbarian:["barbarian","野蠻人"], fighter:["fighter","戰士"],
+ ranger:["ranger","遊俠","游侠"], rogue:["rogue","遊蕩者","盜賊"], barbarian:["barbarian","野蠻人"], fighter:["fighter","戰士"],
  paladin:["paladin","聖騎士"], monk:["monk","武僧"], cleric:["cleric","牧師"],
  druid:["druid","德魯伊"], artificer:["artificer","奇械師"], warlock:["warlock","契術師"],
  sorcerer:["sorcerer","術士"], wizard:["wizard","法師"], bard:["bard","吟遊詩人"]
 };
 export function classLevel(actor,key) {
- const cls=Array.from(actor.items??[]).find(i=>i.type==="class" &&
+ const cls=resourceItems(actor).find(i=>i.type==="class" &&
   objectMatchesAbility(i,CLASSES[key]??[]));
  const n=Number(cls?.system?.levels);
  return Number.isInteger(n)&&n>0&&n<=20?n:0;
@@ -228,7 +228,7 @@ const RULES = {
  charger:[null,0,"攻擊動作中，直線移動至少10尺後立即近戰命中；每回合一次。"],
  gwm:[null,0,"自己回合，以攻擊動作中的重型武器命中；勿重複角色卡既有加值。"],
  spellfire:[null,0,"光耀法術傷害，每回合一次；自動扣除所選生命骰，並持有網站要求的魔焰火花。"],
- fueled:[null,0,"塑能法術傷害，每回合一次；需手動扣除所選生命骰。"],
+ fueled:[null,0,"塑能法術傷害，每回合一次；自動扣除所選生命骰。"],
  frost:[null,0,"對束縛目標造成寒冷傷害時使用。"]
 };
 export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
@@ -236,11 +236,10 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
  if(!rule) return [];
  const [cls,min,note]=rule, level=cls?classLevel(actor,cls):0;
  if(cls&&level<min) return [];
- const source=Array.from(actor.items??[]).find(i=>i.id===sourceItemId);
- if(key!=="launcher"&&sourceItemId&&owned.some(i=>i.id===sourceItemId)) return [];
+ const source=resourceItems(actor).find(i=>i.id===sourceItemId);
  const spellOnly=["druidPotent","savant","chemical","soul","affinity","evocation","channeling","spellfire","fueled"];
  if(spellOnly.includes(key)&&source?.type!=="spell") return [];
- if(["druidPotent"].includes(key)&&Number(source.system?.level)!==0) return [];
+ if(key==="druidPotent"&&Number(source.system?.level)!==0) return [];
  if(key==="channeling"&&!(Number(source.system?.level)>0)) return [];
  const prof=Number(actor.system?.attributes?.prof);
  const mod=a=>Number(actor.system?.abilities?.[a]?.mod);
@@ -304,9 +303,13 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
   applyResourceBinding(e,actor,bindResource(actor,owned,key,key==="psionic"?["Psionic Strike","靈能打擊","靈能打擊 Psionic Strike"]:["Hand of Harm","奪命之手","奪命之手 Hand of Harm"]));
  }
  if(key==="thug") {
-  const activity=resourceActivities(owned[0]).find(a=>resourceMatches(a,["Assassination","刺殺","刺殺 Assassination"]));
-  if(activity&&(activity.uses?.max>0||activity.consumption?.targets?.length))
-   applyResourceBinding(e,actor,bindResource(actor,owned,key,["Assassination","刺殺","刺殺 Assassination"]));
+  const names = ["Assassination", "刺殺", "刺殺 Assassination"];
+  const item = owned[0];
+  const chargedActivity = resourceActivities(item).some(activity => resourceMatches(activity, names) &&
+    (activity.uses?.max > 0 || activity.consumption?.targets?.length));
+  if (chargedActivity || (resourceMatches(item, names) && item.system?.uses?.max > 0)) {
+    applyResourceBinding(e, actor, bindResource(actor, owned, key, names));
+  }
  }
  if(/NaN|undefined/.test(e.formula)||e.choices?.some(c=>/NaN|undefined/.test(c.formula)))
   e.disabledReason="無法讀取所需的屬性調整值或熟練加值";
@@ -314,7 +317,7 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
  if(key==="harm"&&level>=11) {
   const flurryNames=["Flurry of Healing and Harm","flurry-of-healing-and-harm","活殺自在","活殺自在 Flurry of Healing and Harm"];
   // The level-11 feature is evidence of the Mercy option even without a separate subclass item.
-  const flurries=Array.from(actor.items??[]).filter(i=>i.type==="feat"&&
+  const flurries=resourceItems(actor).filter(i=>i.type==="feat"&&
     (resourceMatches(i,flurryNames)||resourceActivities(i).some(a=>resourceMatches(a,flurryNames))));
   if(flurries.length && !flurries.some(i=>i.id===sourceItemId)) {
    const item=flurries[0];

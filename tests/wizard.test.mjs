@@ -5,7 +5,7 @@ test("wizard produces compatible dice rows and validates input",()=>{
  const d={label:"烈焰斬",count:2,faces:6,bonus:3,type:"fire",aliases:"烈焰斬;Flame"};
  assert.equal(customRow(d,{fire:{}}),"烈焰斬 | 2d6 + 3 | fire | 烈焰斬;Flame");
  assert.equal(customRow({...d,bonus:-2,aliases:""},{fire:{}}),"烈焰斬 | 2d6 - 2 | fire | 烈焰斬");
- for(const patch of [{label:""},{count:0},{count:1.5},{faces:7},{bonus:0.5},{type:"bad"},{aliases:"a\nb"},{label:"a|b"}])
+ for(const patch of [{label:""},{count:0},{count:1.5},{faces:7},{bonus:0.5},{type:"bad"},{aliases:"a\nb"},{aliases:"；；"},{aliases:"??"},{label:"a|b"}])
   assert.throws(()=>customRow({...d,...patch},{fire:{}}));
  assert.equal(escapeWizard('<"&'),"&lt;&quot;&amp;");
 });
