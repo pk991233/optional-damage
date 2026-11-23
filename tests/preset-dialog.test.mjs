@@ -198,3 +198,36 @@ test("Savage Attacks can be selected before pressing the final critical button",
  app.config.critical={allow:false}; hooks.renderDamageRollConfigurationDialog(app,root);
  assert.equal(app.config.rolls.length,1);
 });
+
+test("a greataxe uses one d12; the transferred Savage effect disables selection and blocks a pending copy", async () => {
+ const hooks = await setupDialog("野蠻攻擊 | preset:savage | inherit | 野蠻攻擊;Savage Attacks", {});
+ const feat = {id:"s", type:"feat", name:"野蠻攻擊", uuid:"Actor.h.Item.s"};
+ const axe = {id:"axe", type:"weapon", name:"巨斧"};
+ const effect = {name:"Savage Attacks", parent:feat, transfer:true,
+  changes:[{key:"flags.dnd5e.meleeCriticalDamageDice", mode:2, value:"1"}]};
+ const actor = {items:[feat,axe], appliedEffects:[effect], flags:{dnd5e:{meleeCriticalDamageDice:1}}};
+ const config = {subject:{type:"attack",item:axe,actor,getActionType:()=>"mwak",damage:{includeBase:true}},
+  rolls:[{base:true, parts:["1d12","4"], options:{type:"slashing",critical:{bonusDice:1}}}]};
+ const app = {config,rebuild(){},setPosition(){}}, root = new Element("root");
+ const render = () => hooks.renderDamageRollConfigurationDialog(app,root);
+ const check = () => root.children[0].children.find(e=>e.tag==="label").children[0];
+ render();
+ assert.equal(check().disabled,true);
+ assert.equal(config.rolls.length,1);
+ assert.ok(!root.children[0].children.some(e=>e.tag==="select"));
+ effect.disabled = true;
+ config.rolls[0].options.critical.bonusDice = 0;
+ render();
+ assert.equal(check().disabled,false);
+ check().checked = true; check().change();
+ assert.deepEqual(config.rolls[1].parts,["1d12"]);
+ assert.equal(config.rolls[1].options.optionalDamageSavage,"s");
+ effect.disabled = false;
+ config.rolls[0].options.critical.bonusDice = 1;
+ const finalRolls = config.rolls.map(r=>({options:{...r.options,isCritical:true}}));
+ hooks["dnd5e.postDamageRollConfiguration"](finalRolls,config);
+ assert.equal(finalRolls.length,1);
+ render();
+ assert.equal(check().disabled,true);
+ assert.equal(config.rolls.length,1);
+});

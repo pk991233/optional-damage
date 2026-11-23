@@ -303,6 +303,7 @@ export function replaceExtras(config, entries, selected) {
       parts: [entry.smite ? smiteFormula(entry) : entry.formula], data: base[0]?.data ?? {}, situational: false,
       options: {
         [ID]: true, optionalDamageInherit: entry.type === "inherit",
+        ...(entry.savageSource ? {optionalDamageSavage: entry.savageSource} : {}),
         ...(entry.resourceRequests?.length ? {optionalDamageResources:entry.resourceRequests.map(r=>({...r}))} : {}),
         ...(entry.consumes ? {optionalDamageSource: entry.sourceItemId} : {}),
         ...(entry.smite ? {optionalDamageSlot:{kind:entry.smite, key:entry.slotKey,

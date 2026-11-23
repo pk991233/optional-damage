@@ -6,7 +6,7 @@ import {ID, DEFAULTS, PRESETS, parseOptions, replaceExtras, availableOptions, mi
 import {consumptionWrapper} from "./consumption.mjs";
 import {smiteFormula, slotHasUses} from "./smite.mjs";
 import {entriesConflict} from "./rules.mjs";
-import {canSelectEntry, finalizeCriticalExtras} from "./critical.mjs";
+import {canSelectEntry, configureSavageDamage, finalizeCriticalExtras} from "./critical.mjs";
 const states = new WeakMap();
 Hooks.on("dnd5e.postDamageRollConfiguration", finalizeCriticalExtras);
 Hooks.once("ready", () => {
@@ -133,7 +133,8 @@ function refreshEntries(state, config) {
   const subject = config.subject;
   const available = availableOptions(state.definitions, state.actor,
     subject?.item?.id ?? subject?.id, subject?.item ? subject : undefined);
-  const entries = markExistingDamage(dedupeAvailable(available), config);
+  const entries = markExistingDamage(dedupeAvailable(available), config)
+    .map(entry => configureSavageDamage(entry, config));
   const key = e => JSON.stringify([e.dialogIndex, e.presetKey, e.sourceItemId, e.abilityId]);
   const previous = new Map(state.entries.map((e, i) => [key(e), {entry:e, selected:state.selected.has(i)}]));
   const selected = new Set();
@@ -141,7 +142,7 @@ function refreshEntries(state, config) {
     const prior = previous.get(key(entry));
     if (!prior) return;
     const old = prior.entry;
-    if (entry.choices) {
+    if (entry.choices && old.choices) {
       const choice = !old.choicePending && entry.choices.find(c => c.formula === old.formula && c.type === old.type);
       entry.choicePending = !choice;
       if (choice) Object.assign(entry, choice);

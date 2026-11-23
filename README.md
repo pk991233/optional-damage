@@ -1,3 +1,11 @@
+# v0.9.6：野蠻攻擊自動辨識與暴徒刺殺
+
+- 若野蠻攻擊的效果已為本次近戰武器重擊加骰，附傷視窗會停用該項並顯示原因。其他能力給予的重擊加值可與野蠻攻擊並用。
+- 需要自行加入野蠻攻擊時，勾選即可依本次武器擲出一顆基礎傷害骰。例如巨斧為 `1d12`、巨劍為 `1d6`。無法辨識骰面的自訂公式仍可手選。
+- 暴徒的刺殺在成功偷襲浴血目標時可加入傷害。模組不扣物品或活動次數，也不另設每回合計數。
+
+---
+
 # v0.9.5：修正重擊、資源與能力辨識
 
 - 半獸人的野蠻攻擊依最終選擇結算。按「重擊」加一顆所選武器骰，按「普通」取消這筆附傷。
@@ -209,7 +217,7 @@
 
 Manifest：https://raw.githubusercontent.com/pk991233/optional-damage/main/module.json
 
-[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.5.zip)
+[ZIP 下載](https://raw.githubusercontent.com/pk991233/optional-damage/main/downloads/optional-damage-v0.9.6.zip)
 
 已安裝者檢查更新至 0.9.4，重新載入世界。手動安裝請建立 Data/modules/optional-damage 資料夾，將 ZIP 內容解壓到該資料夾（module.json 直接位於該資料夾內）。
 

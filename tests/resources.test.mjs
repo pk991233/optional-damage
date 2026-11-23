@@ -16,14 +16,26 @@ function fixture(list) {
  return {actor,items,config:{subject:{actor},rolls:[{parts:["1d8"],options:{type:"slashing"}}]}};
 }
 const resourceRoll=requests=>({options:{[ID]:true,optionalDamageResources:requests}});
-test("bilingual Thug parent and Assassination activity appear and bind activity uses",()=>{
- const thug=feat("thug","暴徒 Thug");thug.system.activities={assassination:{id:"assassination",name:"刺殺 Assassination",uses:{max:1,spent:0}}};
- const f=fixture([thug,cls("rogue","Rogue",20,"d8")]);
- const e=availableOptions(all,f.actor).find(e=>e.presetKey==="thug");
- assert.equal(e.formula,"3d6");assert.equal(e.resourceRequests[0].path,"system.activities.assassination.uses.spent");
- assert.ok(!e.resourceError);
- thug.system.activities.assassination.uses.spent=1;
- assert.ok(availableOptions(all,f.actor).find(e=>e.presetKey==="thug").resourceError);
+test("repeated Thug Assassination damage ignores activity uses and linked consumption",async()=>{
+ const thug=feat("thug","暴徒 Thug",{max:1,spent:0});
+ const pool=feat("pool","匯入的資源",{max:1,spent:0});
+ const strike={id:"assassination",name:"刺殺 Assassination",uses:{max:1,spent:0},
+  consumption:{targets:[{type:"itemUses",target:pool.id,value:"1"}]}};
+ thug.system.activities={assassination:strike};
+ const f=fixture([thug,pool,cls("rogue","Rogue",20,"d8")]);
+ let evaluations=0;
+ const evaluate=consumptionWrapper(async()=>{evaluations++;});
+ for(const spent of [0,0,1]){
+  strike.uses.spent=spent;
+  const entry=availableOptions(all,f.actor).find(e=>e.presetKey==="thug");
+  replaceExtras(f.config,[entry],new Set([0]));
+  assert.deepEqual(f.config.rolls[1].parts,["3d6"]);
+  await evaluate(f.config.rolls,f.config);
+  assert.equal(strike.uses.spent,spent);
+  assert.equal(thug.system.uses.spent,0);
+  assert.equal(pool.system.uses.spent,0);
+ }
+ assert.equal(evaluations,3);
 });
 test("Psionic Strike consumes explicit linked dice pool rather than own counter",async()=>{
  const strike=feat("strike","Psionic Strike",{max:9,spent:0});

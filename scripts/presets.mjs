@@ -302,15 +302,6 @@ export function resolveExtra(entry,actor,owned,sourceItemId,useStatus) {
  if(["psionic","harm"].includes(key)) {
   applyResourceBinding(e,actor,bindResource(actor,owned,key,key==="psionic"?["Psionic Strike","靈能打擊","靈能打擊 Psionic Strike"]:["Hand of Harm","奪命之手","奪命之手 Hand of Harm"]));
  }
- if(key==="thug") {
-  const names = ["Assassination", "刺殺", "刺殺 Assassination"];
-  const item = owned[0];
-  const chargedActivity = resourceActivities(item).some(activity => resourceMatches(activity, names) &&
-    (activity.uses?.max > 0 || activity.consumption?.targets?.length));
-  if (chargedActivity || (resourceMatches(item, names) && item.system?.uses?.max > 0)) {
-    applyResourceBinding(e, actor, bindResource(actor, owned, key, names));
-  }
- }
  if(/NaN|undefined/.test(e.formula)||e.choices?.some(c=>/NaN|undefined/.test(c.formula)))
   e.disabledReason="無法讀取所需的屬性調整值或熟練加值";
  if(owned.length>1)e.disabledReason="找到多個對應特性，請保留唯一對應項目";

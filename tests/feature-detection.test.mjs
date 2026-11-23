@@ -79,13 +79,13 @@ test("parent and child direct damage cannot add the same ranger rider", () => {
   }
 });
 
-test("a standalone Assassination uses its counter and never spends an unrelated Thug parent counter", () => {
+test("standalone Assassination ignores its imported counter and remains distinct from Assassin's Assassinate", () => {
   const rogue = cls("Rogue", 6);
-  const rider = feature => pick([rogue, feature], "weapon").find(e => e.presetKey === "thug");
-  const counter = {max:1,spent:0};
-  const ability = feat("Assassination", {uses:counter});
-  assert.equal(rider(ability).resourceRequests[0].itemId, ability.id);
-  counter.spent = 1;
-  assert.ok(rider(ability).resourceError);
-  assert.equal(rider(feat("Thug", {uses:counter})).resourceRequests, undefined);
+  const ability = feat("Assassination", {uses:{max:1,spent:1}});
+  const riders = pick([rogue, ability, feat("Assassinate")], "weapon");
+  const thug = riders.find(e => e.presetKey === "thug");
+  assert.equal(thug.formula, "2d6");
+  assert.ok(!thug.disabledReason && !thug.resourceError);
+  assert.ok(!thug.consumes && !thug.resourceRequests?.length);
+  assert.equal(riders.find(e => e.presetKey === "assassinate").formula, "6");
 });
